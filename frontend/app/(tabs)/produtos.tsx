@@ -84,7 +84,10 @@ export default function ProdutosScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Produtos</Text>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/produtos/novo')}
+        >
           <Ionicons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
