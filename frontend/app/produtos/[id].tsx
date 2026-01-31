@@ -319,6 +319,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  codigoDisplay: {
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  codigoText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
   textArea: {
     minHeight: 100,
     paddingTop: 12,
