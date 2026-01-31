@@ -21,7 +21,6 @@ const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBL
 export default function NovoProdutoScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [codigo, setCodigo] = useState('');
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
   const [valorUnitario, setValorUnitario] = useState('');
@@ -29,10 +28,6 @@ export default function NovoProdutoScreen() {
   const [observacoes, setObservacoes] = useState('');
 
   const validarCampos = () => {
-    if (!codigo.trim()) {
-      Alert.alert('Erro', 'Código é obrigatório');
-      return false;
-    }
     if (!nome.trim()) {
       Alert.alert('Erro', 'Nome é obrigatório');
       return false;
