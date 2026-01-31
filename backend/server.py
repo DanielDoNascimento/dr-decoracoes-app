@@ -24,7 +24,8 @@ app.add_middleware(
 # MongoDB
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URL)
-db = client["dr_decoracoes"]
+DB_NAME = os.getenv("DB_NAME", "dr_decoracoes")
+db = client[DB_NAME]
 
 # Collections
 produtos_collection = db["produtos"]
