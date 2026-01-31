@@ -247,7 +247,8 @@ async def deletar_produto(produto_id: str):
 async def listar_eventos(
     status_filter: Optional[str] = None,
     data_inicio: Optional[str] = None,
-    data_fim: Optional[str] = None
+    data_fim: Optional[str] = None,
+    limit: int = 100
 ):
     try:
         query = {}
@@ -258,7 +259,7 @@ async def listar_eventos(
         if data_inicio and data_fim:
             query["dataHoraInicio"] = {"$gte": data_inicio, "$lte": data_fim}
         
-        eventos = list(eventos_collection.find(query).sort("dataHoraInicio", ASCENDING))
+        eventos = list(eventos_collection.find(query).sort("dataHoraInicio", ASCENDING).limit(limit))
         return [evento_helper(e) for e in eventos]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
