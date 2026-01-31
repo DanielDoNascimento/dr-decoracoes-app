@@ -57,7 +57,7 @@ export default function NovoProdutoScreen() {
     setLoading(true);
     try {
       const produto = {
-        codigo: codigo.trim(),
+        codigo: '', // Será gerado automaticamente no backend
         nome: nome.trim(),
         categoria: categoria.trim(),
         valorUnitario: parseFloat(valorUnitario),
