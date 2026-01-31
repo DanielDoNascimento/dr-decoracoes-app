@@ -118,7 +118,7 @@ export default function ProdutosScreen() {
             {busca ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
           </Text>
           {!busca && (
-            <TouchableOpacity style={styles.emptyButton}>
+            <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/produtos/novo')}>
               <Text style={styles.emptyButtonText}>Cadastrar Primeiro Produto</Text>
             </TouchableOpacity>
           )}
