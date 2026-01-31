@@ -105,17 +105,6 @@ export default function NovoProdutoScreen() {
         <ScrollView style={styles.scrollView}>
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Código *</Text>
-              <TextInput
-                style={styles.input}
-                value={codigo}
-                onChangeText={setCodigo}
-                placeholder="Ex: MESA001"
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Nome *</Text>
               <TextInput
                 style={styles.input}
