@@ -1,109 +1,148 @@
+diff --git a/frontend/app/(tabs)/eventos.tsx b/frontend/app/(tabs)/eventos.tsx
+index 63a348a..daff534 100644
+--- a/frontend/app/(tabs)/eventos.tsx
++++ b/frontend/app/(tabs)/eventos.tsx
+@@ -72,7 +72,10 @@ export default function EventosScreen() {
+   };
+ 
+   const renderEvento = ({ item }: { item: Evento }) => (
+-    <TouchableOpacity style={styles.eventoCard}>
++    <TouchableOpacity 
++      style={styles.eventoCard}
++      onPress={() => router.push(`/eventos/${item.id}`)}
++    >
+       <View style={styles.eventoHeader}>
+         <Text style={styles.eventoCliente}>{item.cliente}</Text>
+         <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
+@@ -89,6 +92,7 @@ export default function EventosScreen() {
+       </View>
+       <View style={styles.eventoFooter}>
+         <Text style={styles.eventoValor}>{formatMoeda(item.totalGeral)}</Text>
++        <Ionicons name="chevron-forward" size={20} color="#999" />
+       </View>
+     </TouchableOpacity>
+   );
+@@ -219,6 +223,9 @@ const styles = StyleSheet.create({
+     marginLeft: 8,
+   },
+   eventoFooter: {
++    flexDirection: 'row',
++    justifyContent: 'space-between',
++    alignItems: 'center',
+     marginTop: 8,
+     paddingTop: 12,
+     borderTopWidth: 1,
 diff --git a/model.patch b/model.patch
-index 8a5ea5a..e69de29 100644
+index 1d141db..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,104 +0,0 @@
+@@ -1,109 +0,0 @@
 -diff --git a/model.patch b/model.patch
--index 7726a9f..e69de29 100644
+-index 8a5ea5a..e69de29 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,99 +0,0 @@
---diff --git a/frontend/app/(tabs)/produtos.tsx b/frontend/app/(tabs)/produtos.tsx
---index 7c09be9..5060817 100644
------ a/frontend/app/(tabs)/produtos.tsx
---+++ b/frontend/app/(tabs)/produtos.tsx
---@@ -118,7 +118,7 @@ export default function ProdutosScreen() {
---             {busca ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
---           </Text>
---           {!busca && (
----            <TouchableOpacity style={styles.emptyButton}>
---+            <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/produtos/novo')}>
---               <Text style={styles.emptyButtonText}>Cadastrar Primeiro Produto</Text>
---             </TouchableOpacity>
---           )}
+-@@ -1,104 +0,0 @@
 --diff --git a/model.patch b/model.patch
---index c0a5cf2..e69de29 100644
+--index 7726a9f..e69de29 100644
 ----- a/model.patch
 --+++ b/model.patch
---@@ -1,81 +0,0 @@
----diff --git a/test_result.md b/test_result.md
----index 2b71798..c8c304b 100644
------- a/test_result.md
----+++ b/test_result.md
----@@ -107,39 +107,48 @@ user_problem_statement: "App de controle de festas e eventos para D&R Decoraçõ
---- backend:
----   - task: "API de Produtos - CRUD completo"
----     implemented: true
-----    working: "NA"
----+    working: true
----     file: "/app/backend/server.py"
----     stuck_count: 0
----     priority: "high"
-----    needs_retesting: true
----+    needs_retesting: false
----     status_history:
----       - working: "NA"
----         agent: "main"
----         comment: "Implementado CRUD completo de produtos com validação de código único e controle de estoque. Endpoints: GET/POST/PUT/DELETE /api/produtos"
----+      - working: true
----+        agent: "testing"
----+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de produtos testados com sucesso. CRUD completo funcionando: criação, listagem, busca por termo, obtenção por ID, atualização e deleção. Validações funcionando: código único, estoque não negativo, produto em uso não pode ser deletado. Testado com dados realistas (Mesa Redonda Branca, Cadeira Tiffany Rosa)."
----   
----   - task: "API de Eventos - CRUD e dashboard"
----     implemented: true
-----    working: "NA"
----+    working: true
----     file: "/app/backend/server.py"
----     stuck_count: 0
----     priority: "high"
-----    needs_retesting: true
----+    needs_retesting: false
----     status_history:
----       - working: "NA"
----         agent: "main"
----         comment: "Implementado CRUD de eventos com cálculo de totais, mudança de status, e endpoint de dashboard. Endpoints: GET/POST/PUT/DELETE /api/eventos, GET /api/eventos/dashboard, PUT /api/eventos/{id}/status"
----+      - working: true
----+        agent: "testing"
----+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de eventos funcionando perfeitamente. CRUD completo: criação, listagem, filtros por status, obtenção por ID, atualização, deleção. Dashboard retornando dados corretos (totalNaoRealizados, proximosEventos). Mudança de status funcionando. Cálculo automático de totais (produtos + frete + organização) funcionando corretamente. Validação de status inválido funcionando."
----   
----   - task: "Sistema de verificação de disponibilidade por horário"
----     implemented: true
-----    working: "NA"
----+    working: true
----     file: "/app/backend/server.py"
----     stuck_count: 0
----     priority: "high"
-----    needs_retesting: true
----+    needs_retesting: false
----     status_history:
----       - working: "NA"
----         agent: "main"
----         comment: "Implementado sistema que verifica disponibilidade de produtos considerando conflitos de horário. Apenas eventos com status 'pendente' ou 'realizado' reservam estoque. Endpoint: POST /api/eventos/disponibilidade"
----+      - working: true
----+        agent: "testing"
----+        comment: "✅ TESTADO E FUNCIONANDO: Sistema de disponibilidade por horário funcionando perfeitamente. Verificação de conflitos de horário funcionando corretamente - eventos com status 'orçamento' não reservam estoque, apenas 'pendente' e 'realizado'. Cálculo de estoque disponível correto considerando sobreposição de horários. Testado cenários de conflito e não-conflito com sucesso."
---- 
---- frontend:
----   - task: "Navegação com tabs"
----@@ -209,14 +218,13 @@ metadata:
----   run_ui: false
---- 
---- test_plan:
-----  current_focus:
-----    - "API de Produtos - CRUD completo"
-----    - "API de Eventos - CRUD e dashboard"
-----    - "Sistema de verificação de disponibilidade por horário"
----+  current_focus: []
----   stuck_tasks: []
-----  test_all: true
----+  test_all: false
----   test_priority: "high_first"
---- 
---- agent_communication:
----   - agent: "main"
-----    message: "Implementada estrutura base completa do app: Backend com APIs de produtos e eventos, sistema de controle de estoque por horário, e frontend com 4 telas principais em navegação por tabs. Pronto para testar todas as APIs do backend."
----\ No newline at end of file
----+    message: "Implementada estrutura base completa do app: Backend com APIs de produtos e eventos, sistema de controle de estoque por horário, e frontend com 4 telas principais em navegação por tabs. Pronto para testar todas as APIs do backend."
----+  - agent: "testing"
----+    message: "✅ BACKEND TOTALMENTE TESTADO E FUNCIONANDO: Executei 19 testes principais + testes adicionais de edge cases. Todos os endpoints críticos funcionando perfeitamente: CRUD de produtos com validações, CRUD de eventos com cálculo automático de totais, sistema de disponibilidade por horário considerando conflitos. Validações funcionando: código único de produto, estoque não negativo, produto em uso não pode ser deletado, status de evento válido. Sistema de reserva de estoque funcionando corretamente (apenas eventos 'pendente' e 'realizado' reservam estoque). Minor: Alguns endpoints retornam 520 em vez de 404 para ObjectIds inválidos, mas funcionalidade core está perfeita."
----\ No newline at end of file
+--@@ -1,99 +0,0 @@
+---diff --git a/frontend/app/(tabs)/produtos.tsx b/frontend/app/(tabs)/produtos.tsx
+---index 7c09be9..5060817 100644
+------ a/frontend/app/(tabs)/produtos.tsx
+---+++ b/frontend/app/(tabs)/produtos.tsx
+---@@ -118,7 +118,7 @@ export default function ProdutosScreen() {
+---             {busca ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
+---           </Text>
+---           {!busca && (
+----            <TouchableOpacity style={styles.emptyButton}>
+---+            <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/produtos/novo')}>
+---               <Text style={styles.emptyButtonText}>Cadastrar Primeiro Produto</Text>
+---             </TouchableOpacity>
+---           )}
+---diff --git a/model.patch b/model.patch
+---index c0a5cf2..e69de29 100644
+------ a/model.patch
+---+++ b/model.patch
+---@@ -1,81 +0,0 @@
+----diff --git a/test_result.md b/test_result.md
+----index 2b71798..c8c304b 100644
+------- a/test_result.md
+----+++ b/test_result.md
+----@@ -107,39 +107,48 @@ user_problem_statement: "App de controle de festas e eventos para D&R Decoraçõ
+---- backend:
+----   - task: "API de Produtos - CRUD completo"
+----     implemented: true
+-----    working: "NA"
+----+    working: true
+----     file: "/app/backend/server.py"
+----     stuck_count: 0
+----     priority: "high"
+-----    needs_retesting: true
+----+    needs_retesting: false
+----     status_history:
+----       - working: "NA"
+----         agent: "main"
+----         comment: "Implementado CRUD completo de produtos com validação de código único e controle de estoque. Endpoints: GET/POST/PUT/DELETE /api/produtos"
+----+      - working: true
+----+        agent: "testing"
+----+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de produtos testados com sucesso. CRUD completo funcionando: criação, listagem, busca por termo, obtenção por ID, atualização e deleção. Validações funcionando: código único, estoque não negativo, produto em uso não pode ser deletado. Testado com dados realistas (Mesa Redonda Branca, Cadeira Tiffany Rosa)."
+----   
+----   - task: "API de Eventos - CRUD e dashboard"
+----     implemented: true
+-----    working: "NA"
+----+    working: true
+----     file: "/app/backend/server.py"
+----     stuck_count: 0
+----     priority: "high"
+-----    needs_retesting: true
+----+    needs_retesting: false
+----     status_history:
+----       - working: "NA"
+----         agent: "main"
+----         comment: "Implementado CRUD de eventos com cálculo de totais, mudança de status, e endpoint de dashboard. Endpoints: GET/POST/PUT/DELETE /api/eventos, GET /api/eventos/dashboard, PUT /api/eventos/{id}/status"
+----+      - working: true
+----+        agent: "testing"
+----+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de eventos funcionando perfeitamente. CRUD completo: criação, listagem, filtros por status, obtenção por ID, atualização, deleção. Dashboard retornando dados corretos (totalNaoRealizados, proximosEventos). Mudança de status funcionando. Cálculo automático de totais (produtos + frete + organização) funcionando corretamente. Validação de status inválido funcionando."
+----   
+----   - task: "Sistema de verificação de disponibilidade por horário"
+----     implemented: true
+-----    working: "NA"
+----+    working: true
+----     file: "/app/backend/server.py"
+----     stuck_count: 0
+----     priority: "high"
+-----    needs_retesting: true
+----+    needs_retesting: false
+----     status_history:
+----       - working: "NA"
+----         agent: "main"
+----         comment: "Implementado sistema que verifica disponibilidade de produtos considerando conflitos de horário. Apenas eventos com status 'pendente' ou 'realizado' reservam estoque. Endpoint: POST /api/eventos/disponibilidade"
+----+      - working: true
+----+        agent: "testing"
+----+        comment: "✅ TESTADO E FUNCIONANDO: Sistema de disponibilidade por horário funcionando perfeitamente. Verificação de conflitos de horário funcionando corretamente - eventos com status 'orçamento' não reservam estoque, apenas 'pendente' e 'realizado'. Cálculo de estoque disponível correto considerando sobreposição de horários. Testado cenários de conflito e não-conflito com sucesso."
+---- 
+---- frontend:
+----   - task: "Navegação com tabs"
+----@@ -209,14 +218,13 @@ metadata:
+----   run_ui: false
+---- 
+---- test_plan:
+-----  current_focus:
+-----    - "API de Produtos - CRUD completo"
+-----    - "API de Eventos - CRUD e dashboard"
+-----    - "Sistema de verificação de disponibilidade por horário"
+----+  current_focus: []
+----   stuck_tasks: []
+-----  test_all: true
+----+  test_all: false
+----   test_priority: "high_first"
+---- 
+---- agent_communication:
+----   - agent: "main"
+-----    message: "Implementada estrutura base completa do app: Backend com APIs de produtos e eventos, sistema de controle de estoque por horário, e frontend com 4 telas principais em navegação por tabs. Pronto para testar todas as APIs do backend."
+----\ No newline at end of file
+----+    message: "Implementada estrutura base completa do app: Backend com APIs de produtos e eventos, sistema de controle de estoque por horário, e frontend com 4 telas principais em navegação por tabs. Pronto para testar todas as APIs do backend."
+----+  - agent: "testing"
+----+    message: "✅ BACKEND TOTALMENTE TESTADO E FUNCIONANDO: Executei 19 testes principais + testes adicionais de edge cases. Todos os endpoints críticos funcionando perfeitamente: CRUD de produtos com validações, CRUD de eventos com cálculo automático de totais, sistema de disponibilidade por horário considerando conflitos. Validações funcionando: código único de produto, estoque não negativo, produto em uso não pode ser deletado, status de evento válido. Sistema de reserva de estoque funcionando corretamente (apenas eventos 'pendente' e 'realizado' reservam estoque). Minor: Alguns endpoints retornam 520 em vez de 404 para ObjectIds inválidos, mas funcionalidade core está perfeita."
+----\ No newline at end of file
