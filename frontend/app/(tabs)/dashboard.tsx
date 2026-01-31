@@ -235,6 +235,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    alignItems: 'center',
   },
   statsIconContainer: {
     width: 64,
@@ -259,6 +260,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  statsSecondary: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
   section: {
     padding: 16,
   },
@@ -268,7 +274,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 16,
   },
-  eventoCard: {
+  eventoCardCompact: {
     backgroundColor: '#FFF',
     padding: 16,
     borderRadius: 12,
@@ -279,22 +285,44 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  eventoHeader: {
+  eventoMainInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  eventoCliente: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+  eventoLeft: {
     flex: 1,
+    marginRight: 12,
   },
-  statusBadge: {
-    paddingHorizontal: 12,
+  eventoRight: {
+    alignItems: 'flex-end',
+  },
+  eventoClienteCompact: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  eventoInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventoInfoTextCompact: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 6,
+  },
+  statusChipSmall: {
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    color: '#555',
   },
   status_orçamento: {
     backgroundColor: '#FFF3CD',
@@ -308,29 +336,8 @@ const styles = StyleSheet.create({
   status_cancelado: {
     backgroundColor: '#F8D7DA',
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  eventoInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  eventoInfoText: {
-    fontSize: 14,
-    color: '#666',
-    marginLeft: 8,
-  },
-  eventoFooter: {
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-  },
-  eventoValor: {
-    fontSize: 18,
+  eventoValorCompact: {
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#FFB6C1',
   },
@@ -342,6 +349,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     marginTop: 16,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#BBB',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#FFB6C1',
+    backgroundColor: '#FFF',
+  },
+  emptyButtonText: {
+    color: '#FFB6C1',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   errorContainer: {
     flex: 1,
