@@ -176,8 +176,11 @@ export default function DetalhesEventoScreen() {
           <Ionicons name="arrow-back" size={24} color="#FFB6C1" />
         </TouchableOpacity>
         <Text style={styles.title}>Detalhes do Evento</Text>
-        <TouchableOpacity onPress={confirmarExclusao} style={styles.deleteButton}>
-          <Ionicons name="trash" size={24} color="#FF6B6B" />
+        <TouchableOpacity 
+          onPress={() => router.push(`/eventos/editar/${id}`)} 
+          style={styles.editButton}
+        >
+          <Ionicons name="create" size={24} color="#FFB6C1" />
         </TouchableOpacity>
       </View>
 
