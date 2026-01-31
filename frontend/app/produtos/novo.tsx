@@ -217,6 +217,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 100, // Espaço para o botão fixo
+  },
   form: {
     padding: 24,
   },
