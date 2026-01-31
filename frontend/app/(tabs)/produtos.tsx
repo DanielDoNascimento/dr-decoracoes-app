@@ -67,7 +67,10 @@ export default function ProdutosScreen() {
   };
 
   const renderProduto = ({ item }: { item: Produto }) => (
-    <TouchableOpacity style={styles.produtoCard}>
+    <TouchableOpacity 
+      style={styles.produtoCard}
+      onPress={() => router.push(`/produtos/${item.id}`)}
+    >
       <View style={styles.produtoHeader}>
         <Text style={styles.produtoCodigo}>#{item.codigo}</Text>
         <Text style={styles.produtoEstoque}>{item.quantidadeEstoque} un.</Text>
@@ -76,6 +79,7 @@ export default function ProdutosScreen() {
       <Text style={styles.produtoCategoria}>{item.categoria}</Text>
       <View style={styles.produtoFooter}>
         <Text style={styles.produtoValor}>{formatMoeda(item.valorUnitario)}</Text>
+        <Ionicons name="chevron-forward" size={20} color="#999" />
       </View>
     </TouchableOpacity>
   );
