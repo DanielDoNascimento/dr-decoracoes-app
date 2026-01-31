@@ -181,14 +181,10 @@ export default function EditarProdutoScreen() {
         <ScrollView style={styles.scrollView}>
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Código *</Text>
-              <TextInput
-                style={styles.input}
-                value={codigo}
-                onChangeText={setCodigo}
-                placeholder="Ex: MESA001"
-                autoCapitalize="characters"
-              />
+              <Text style={styles.label}>Código (Automático)</Text>
+              <View style={styles.codigoDisplay}>
+                <Text style={styles.codigoText}>{codigo}</Text>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
