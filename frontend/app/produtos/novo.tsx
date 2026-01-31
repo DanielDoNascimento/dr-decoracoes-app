@@ -102,7 +102,10 @@ export default function NovoProdutoScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView style={styles.scrollView}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nome *</Text>
@@ -158,20 +161,23 @@ export default function NovoProdutoScreen() {
                 textAlignVertical="top"
               />
             </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-              onPress={salvarProduto}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>Salvar Produto</Text>
-              )}
-            </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Botão Fixo no Rodapé */}
+        <View style={styles.fixedFooter}>
+          <TouchableOpacity
+            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            onPress={salvarProduto}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Salvar Produto</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
