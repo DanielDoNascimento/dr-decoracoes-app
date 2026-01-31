@@ -107,39 +107,48 @@ user_problem_statement: "App de controle de festas e eventos para D&R Decoraçõ
 backend:
   - task: "API de Produtos - CRUD completo"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado CRUD completo de produtos com validação de código único e controle de estoque. Endpoints: GET/POST/PUT/DELETE /api/produtos"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de produtos testados com sucesso. CRUD completo funcionando: criação, listagem, busca por termo, obtenção por ID, atualização e deleção. Validações funcionando: código único, estoque não negativo, produto em uso não pode ser deletado. Testado com dados realistas (Mesa Redonda Branca, Cadeira Tiffany Rosa)."
   
   - task: "API de Eventos - CRUD e dashboard"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado CRUD de eventos com cálculo de totais, mudança de status, e endpoint de dashboard. Endpoints: GET/POST/PUT/DELETE /api/eventos, GET /api/eventos/dashboard, PUT /api/eventos/{id}/status"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTADO E FUNCIONANDO: Todos os endpoints de eventos funcionando perfeitamente. CRUD completo: criação, listagem, filtros por status, obtenção por ID, atualização, deleção. Dashboard retornando dados corretos (totalNaoRealizados, proximosEventos). Mudança de status funcionando. Cálculo automático de totais (produtos + frete + organização) funcionando corretamente. Validação de status inválido funcionando."
   
   - task: "Sistema de verificação de disponibilidade por horário"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado sistema que verifica disponibilidade de produtos considerando conflitos de horário. Apenas eventos com status 'pendente' ou 'realizado' reservam estoque. Endpoint: POST /api/eventos/disponibilidade"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTADO E FUNCIONANDO: Sistema de disponibilidade por horário funcionando perfeitamente. Verificação de conflitos de horário funcionando corretamente - eventos com status 'orçamento' não reservam estoque, apenas 'pendente' e 'realizado'. Cálculo de estoque disponível correto considerando sobreposição de horários. Testado cenários de conflito e não-conflito com sucesso."
 
 frontend:
   - task: "Navegação com tabs"
