@@ -381,37 +381,45 @@ async def deletar_evento(evento_id: str):
 
 @app.post("/api/eventos/disponibilidade")
 async def verificar_disponibilidade(request: DisponibilidadeRequest):
-    """Retorna lista de produtos com disponibilidade no período"""
+    """Retorna lista de produtos com disponibilidade no período - otimizado"""
     try:
+        # Pipeline de agregação para calcular disponibilidade de todos os produtos de uma vez
+        pipeline = [
+            # Match eventos que conflitam com o período
+            {
+                "$match": {
+                    "status": {"$in": ["pendente", "realizado"]},
+                    "$or": [
+                        {"dataHoraInicio": {"$gte": request.dataHoraInicio, "$lt": request.dataHoraFim}},
+                        {"dataHoraFim": {"$gt": request.dataHoraInicio, "$lte": request.dataHoraFim}},
+                        {"dataHoraInicio": {"$lte": request.dataHoraInicio}, "dataHoraFim": {"$gte": request.dataHoraFim}}
+                    ]
+                }
+            },
+            # Excluir evento se estiver editando
+            *([{"$match": {"_id": {"$ne": ObjectId(request.eventoIdExcluir)}}}] if request.eventoIdExcluir else []),
+            # Descompactar array de itens
+            {"$unwind": "$itens"},
+            # Agrupar por produto e somar quantidades
+            {
+                "$group": {
+                    "_id": "$itens.produtoId",
+                    "quantidadeReservada": {"$sum": "$itens.quantidade"}
+                }
+            }
+        ]
+        
+        # Executar agregação
+        reservas = {doc["_id"]: doc["quantidadeReservada"] for doc in eventos_collection.aggregate(pipeline)}
+        
+        # Buscar todos os produtos
         produtos = list(produtos_collection.find({}))
         produtos_disponiveis = []
         
         for produto in produtos:
             produto_id = str(produto["_id"])
             estoque_total = produto["quantidadeEstoque"]
-            
-            # Calcular quantidade reservada no período
-            query = {
-                "itens.produtoId": produto_id,
-                "status": {"$in": ["pendente", "realizado"]},
-                "$or": [
-                    {"dataHoraInicio": {"$gte": request.dataHoraInicio, "$lt": request.dataHoraFim}},
-                    {"dataHoraFim": {"$gt": request.dataHoraInicio, "$lte": request.dataHoraFim}},
-                    {"dataHoraInicio": {"$lte": request.dataHoraInicio}, "dataHoraFim": {"$gte": request.dataHoraFim}}
-                ]
-            }
-            
-            if request.eventoIdExcluir:
-                query["_id"] = {"$ne": ObjectId(request.eventoIdExcluir)}
-            
-            eventos_conflitantes = list(eventos_collection.find(query))
-            
-            quantidade_reservada = 0
-            for evento in eventos_conflitantes:
-                for item in evento.get("itens", []):
-                    if item["produtoId"] == produto_id:
-                        quantidade_reservada += item["quantidade"]
-            
+            quantidade_reservada = reservas.get(produto_id, 0)
             estoque_disponivel = estoque_total - quantidade_reservada
             
             produtos_disponiveis.append({
