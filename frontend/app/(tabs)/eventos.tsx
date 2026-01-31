@@ -113,7 +113,7 @@ export default function EventosScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="calendar-outline" size={64} color="#CCC" />
           <Text style={styles.emptyText}>Nenhum evento encontrado</Text>
-          <TouchableOpacity style={styles.emptyButton}>
+          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/eventos/novo')}>
             <Text style={styles.emptyButtonText}>Criar Primeiro Evento</Text>
           </TouchableOpacity>
         </View>
