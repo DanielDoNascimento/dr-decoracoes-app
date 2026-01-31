@@ -35,6 +35,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [eventosEstaSemana, setEventosEstaSemana] = useState(0);
 
   const fetchDashboard = async () => {
     try {
@@ -43,6 +44,18 @@ export default function DashboardScreen() {
       if (!response.ok) throw new Error('Erro ao carregar dashboard');
       const result = await response.json();
       setData(result);
+      
+      // Calcular eventos desta semana
+      const hoje = new Date();
+      const seteDiasDepois = new Date();
+      seteDiasDepois.setDate(hoje.getDate() + 7);
+      
+      const eventosSemana = result.proximosEventos.filter((evento: Evento) => {
+        const dataEvento = new Date(evento.dataHoraInicio);
+        return dataEvento >= hoje && dataEvento <= seteDiasDepois;
+      });
+      
+      setEventosEstaSemana(eventosSemana.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -65,7 +78,6 @@ export default function DashboardScreen() {
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -111,44 +123,68 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.statsCard}>
+            {/* Card Clicável de Eventos Não Realizados */}
+            <TouchableOpacity 
+              style={styles.statsCard}
+              onPress={() => router.push('/(tabs)/eventos')}
+              activeOpacity={0.7}
+            >
               <View style={styles.statsIconContainer}>
                 <Ionicons name="calendar-outline" size={32} color="#FFB6C1" />
               </View>
               <View style={styles.statsContent}>
                 <Text style={styles.statsValue}>{data?.totalNaoRealizados || 0}</Text>
                 <Text style={styles.statsLabel}>Eventos Não Realizados</Text>
+                {eventosEstaSemana > 0 && (
+                  <Text style={styles.statsSecondary}>
+                    {eventosEstaSemana} esta semana
+                  </Text>
+                )}
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={24} color="#CCC" />
+            </TouchableOpacity>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Próximos Eventos</Text>
               {data?.proximosEventos && data.proximosEventos.length > 0 ? (
                 data.proximosEventos.map((evento) => (
-                  <View key={evento.id} style={styles.eventoCard}>
-                    <View style={styles.eventoHeader}>
-                      <Text style={styles.eventoCliente}>{evento.cliente}</Text>
-                      <View style={[styles.statusBadge, styles[`status_${evento.status}`]]}>
-                        <Text style={styles.statusText}>{evento.status}</Text>
+                  <TouchableOpacity 
+                    key={evento.id} 
+                    style={styles.eventoCardCompact}
+                    onPress={() => router.push(`/eventos/${evento.id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.eventoMainInfo}>
+                      <View style={styles.eventoLeft}>
+                        <Text style={styles.eventoClienteCompact}>{evento.cliente}</Text>
+                        <View style={styles.eventoInfoRow}>
+                          <Ionicons name="calendar" size={14} color="#666" />
+                          <Text style={styles.eventoInfoTextCompact}>{formatData(evento.dataHoraInicio)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.eventoRight}>
+                        <View style={[styles.statusChipSmall, styles[`status_${evento.status}`]]}>
+                          <Text style={styles.statusChipText}>{evento.status}</Text>
+                        </View>
+                        <Text style={styles.eventoValorCompact}>{formatMoeda(evento.totalGeral)}</Text>
                       </View>
                     </View>
-                    <View style={styles.eventoInfo}>
-                      <Ionicons name="calendar" size={16} color="#666" />
-                      <Text style={styles.eventoInfoText}>{formatData(evento.dataHoraInicio)}</Text>
-                    </View>
-                    <View style={styles.eventoInfo}>
-                      <Ionicons name="location" size={16} color="#666" />
-                      <Text style={styles.eventoInfoText}>{evento.local}</Text>
-                    </View>
-                    <View style={styles.eventoFooter}>
-                      <Text style={styles.eventoValor}>{formatMoeda(evento.totalGeral)}</Text>
-                    </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="calendar-outline" size={64} color="#CCC" />
+                  <Ionicons name="calendar-outline" size={80} color="#E0E0E0" />
                   <Text style={styles.emptyText}>Nenhum evento próximo</Text>
+                  <Text style={styles.emptySubtext}>
+                    Crie seu primeiro evento para começar
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.emptyButton}
+                    onPress={() => router.push('/eventos/novo')}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#FFB6C1" />
+                    <Text style={styles.emptyButtonText}>Criar novo evento</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
