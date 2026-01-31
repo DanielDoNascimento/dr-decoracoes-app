@@ -178,7 +178,10 @@ export default function EditarProdutoScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView style={styles.scrollView}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Código (Automático)</Text>
@@ -241,20 +244,23 @@ export default function EditarProdutoScreen() {
                 textAlignVertical="top"
               />
             </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-              onPress={salvarProduto}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>Salvar Alterações</Text>
-              )}
-            </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Botão Fixo no Rodapé */}
+        <View style={styles.fixedFooter}>
+          <TouchableOpacity
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={salvarProduto}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
