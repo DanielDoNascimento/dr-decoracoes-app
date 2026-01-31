@@ -151,7 +151,7 @@ def verificar_disponibilidade_produto(produto_id: str, quantidade: int, data_ini
 # ============= PRODUTOS ROUTES =============
 
 @app.get("/api/produtos")
-async def listar_produtos(busca: Optional[str] = None):
+async def listar_produtos(busca: Optional[str] = None, limit: int = 100):
     try:
         query = {}
         if busca:
@@ -161,7 +161,7 @@ async def listar_produtos(busca: Optional[str] = None):
                 {"categoria": {"$regex": busca, "$options": "i"}}
             ]
         
-        produtos = list(produtos_collection.find(query).sort("nome", ASCENDING))
+        produtos = list(produtos_collection.find(query).sort("nome", ASCENDING).limit(limit))
         return [produto_helper(p) for p in produtos]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
