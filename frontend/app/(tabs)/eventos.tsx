@@ -72,7 +72,10 @@ export default function EventosScreen() {
   };
 
   const renderEvento = ({ item }: { item: Evento }) => (
-    <TouchableOpacity style={styles.eventoCard}>
+    <TouchableOpacity 
+      style={styles.eventoCard}
+      onPress={() => router.push(`/eventos/${item.id}`)}
+    >
       <View style={styles.eventoHeader}>
         <Text style={styles.eventoCliente}>{item.cliente}</Text>
         <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
@@ -89,6 +92,7 @@ export default function EventosScreen() {
       </View>
       <View style={styles.eventoFooter}>
         <Text style={styles.eventoValor}>{formatMoeda(item.totalGeral)}</Text>
+        <Ionicons name="chevron-forward" size={20} color="#999" />
       </View>
     </TouchableOpacity>
   );
