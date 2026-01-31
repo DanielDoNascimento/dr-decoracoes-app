@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,7 +9,11 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>D&R Decorações</Text>
+        <Image 
+          source={require('../assets/images/logo_dr.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.subtitle}>Controle de Festas e Eventos</Text>
         
         <TouchableOpacity 
@@ -34,12 +38,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFB6C1',
-    marginBottom: 8,
-    textAlign: 'center',
+  logo: {
+    width: 250,
+    height: 250,
+    marginBottom: 24,
   },
   subtitle: {
     fontSize: 18,
