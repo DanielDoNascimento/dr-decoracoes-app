@@ -111,6 +111,14 @@ export default function ProdutosScreen() {
         )}
       </View>
 
+      {busca.length > 0 && !loading && (
+        <View style={styles.searchResultsContainer}>
+          <Text style={styles.searchResultsText}>
+            {produtos.length} {produtos.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
+          </Text>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFB6C1" />
