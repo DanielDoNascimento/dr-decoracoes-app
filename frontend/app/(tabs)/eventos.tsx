@@ -97,7 +97,10 @@ export default function EventosScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Eventos</Text>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/eventos/novo')}
+        >
           <Ionicons name="add" size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
