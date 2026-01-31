@@ -201,6 +201,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  searchResultsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  searchResultsText: {
+    fontSize: 13,
+    color: '#999',
+    fontStyle: 'italic',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
