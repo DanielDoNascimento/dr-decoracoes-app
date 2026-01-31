@@ -179,16 +179,33 @@ async def obter_produto(produto_id: str):
 @app.post("/api/produtos", status_code=status.HTTP_201_CREATED)
 async def criar_produto(produto: Produto):
     try:
-        # Verificar se código já existe
-        existe = produtos_collection.find_one({"codigo": produto.codigo})
-        if existe:
-            raise HTTPException(status_code=400, detail="Código do produto já existe")
+        # Gerar código automático
+        ultimo_produto = produtos_collection.find_one(
+            {},
+            sort=[("codigo", -1)]
+        )
+        
+        if ultimo_produto and ultimo_produto.get("codigo"):
+            # Extrair número do último código (ex: PROD0001 -> 1)
+            try:
+                ultimo_numero = int(ultimo_produto["codigo"].replace("PROD", ""))
+                novo_numero = ultimo_numero + 1
+            except:
+                # Se falhar, começar do 1
+                novo_numero = 1
+        else:
+            novo_numero = 1
+        
+        # Gerar novo código com zero padding (PROD0001, PROD0002, etc)
+        codigo_gerado = f"PROD{novo_numero:04d}"
         
         # Validar estoque
         if produto.quantidadeEstoque < 0:
             raise HTTPException(status_code=400, detail="Estoque não pode ser negativo")
         
         produto_dict = produto.dict()
+        produto_dict["codigo"] = codigo_gerado  # Sobrescrever com código gerado
+        
         result = produtos_collection.insert_one(produto_dict)
         produto_dict["_id"] = result.inserted_id
         return produto_helper(produto_dict)
