@@ -223,6 +223,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   eventoFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
