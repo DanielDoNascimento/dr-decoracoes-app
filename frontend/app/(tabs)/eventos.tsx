@@ -30,17 +30,19 @@ export default function EventosScreen() {
   const router = useRouter();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
 
   const fetchEventos = async () => {
     try {
-      // Buscar apenas eventos não realizados e não cancelados
       const response = await fetch(`${API_URL}/api/eventos`);
       if (!response.ok) throw new Error('Erro ao carregar eventos');
       const data = await response.json();
-      // Filtrar apenas orçamentos e pendentes
-      const eventosFiltrados = data.filter(
-        (e: Evento) => e.status === 'orçamento' || e.status === 'pendente'
-      );
+      // Filtrar apenas orçamentos e pendentes e ordenar por data
+      const eventosFiltrados = data
+        .filter((e: Evento) => e.status === 'orçamento' || e.status === 'pendente')
+        .sort((a: Evento, b: Evento) => 
+          new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+        );
       setEventos(eventosFiltrados);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar os eventos');
@@ -58,7 +60,6 @@ export default function EventosScreen() {
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -70,6 +71,17 @@ export default function EventosScreen() {
       currency: 'BRL',
     });
   };
+
+  const isEventoAtrasado = (dataISO: string, status: string) => {
+    if (status === 'realizado') return false;
+    const dataEvento = new Date(dataISO);
+    const agora = new Date();
+    return dataEvento < agora;
+  };
+
+  const eventosFiltrados = filtroStatus
+    ? eventos.filter((e) => e.status === filtroStatus)
+    : eventos;
 
   const renderEvento = ({ item }: { item: Evento }) => (
     <TouchableOpacity 
