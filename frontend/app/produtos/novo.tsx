@@ -161,23 +161,25 @@ export default function NovoProdutoScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Valor Unitário (R$) *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, valorError && styles.inputError]}
                 value={valorUnitario}
-                onChangeText={setValorUnitario}
+                onChangeText={validarValorUnitario}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
               />
+              {valorError ? <Text style={styles.errorText}>{valorError}</Text> : null}
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Quantidade em Estoque *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, estoqueError && styles.inputError]}
                 value={quantidadeEstoque}
-                onChangeText={setQuantidadeEstoque}
+                onChangeText={validarQuantidadeEstoque}
                 placeholder="0"
                 keyboardType="number-pad"
               />
+              {estoqueError ? <Text style={styles.errorText}>{estoqueError}</Text> : null}
             </View>
 
             <View style={styles.inputGroup}>
