@@ -169,18 +169,52 @@ export default function EventosScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFB6C1" />
         </View>
-      ) : eventos.length === 0 ? (
+      ) : eventosFiltrados.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="calendar-outline" size={64} color="#CCC" />
           <Text style={styles.emptyText}>Nenhum evento encontrado</Text>
-          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/eventos/novo')}>
+          <TouchableOpacity 
+            style={styles.emptyButton}
+            onPress={() => router.push('/eventos/novo')}
+          >
             <Text style={styles.emptyButtonText}>Criar Primeiro Evento</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={eventos}
-          renderItem={renderEvento}
+          data={eventosFiltrados}
+          renderItem={({ item }) => {
+            const atrasado = isEventoAtrasado(item.dataHoraInicio, item.status);
+            return (
+              <TouchableOpacity 
+                style={styles.eventoCard}
+                onPress={() => router.push(`/eventos/${item.id}`)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.eventoHeader}>
+                  <Text style={styles.eventoCliente}>{item.cliente}</Text>
+                  <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
+                    <Text style={styles.statusText}>{item.status}</Text>
+                  </View>
+                </View>
+                <View style={styles.eventoInfo}>
+                  <Ionicons name="calendar" size={16} color={atrasado ? "#FF6B6B" : "#666"} />
+                  <Text style={[styles.eventoInfoText, atrasado && styles.eventoInfoTextAtrasado]}>
+                    {formatData(item.dataHoraInicio)}
+                    {atrasado && ' • Atrasado'}
+                  </Text>
+                </View>
+                <View style={styles.eventoInfo}>
+                  <Ionicons name="location" size={16} color="#666" />
+                  <Text style={styles.eventoInfoText}>{item.local}</Text>
+                </View>
+                <View style={styles.eventoFooter}>
+                  <Text style={styles.eventoValor}>{formatMoeda(item.totalGeral)}</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#999" />
+                </View>
+              </TouchableOpacity>
+            );
+          }}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
         />
