@@ -463,9 +463,9 @@ export default function EditarEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={valorFrete}
-                onChangeText={setValorFrete}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
+                onChangeText={handleValorFreteChange}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
               />
             </View>
 
@@ -474,9 +474,9 @@ export default function EditarEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={valorOrganizacao}
-                onChangeText={setValorOrganizacao}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
+                onChangeText={handleValorOrganizacaoChange}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
               />
             </View>
 
