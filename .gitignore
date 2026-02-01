@@ -78,3 +78,18 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+
+# ======================
+# Expo specific
+# ======================
+.expo/
+.expo-shared/
+.metro-cache/
+
+# ======================
+# Environment variables
+# ======================
+.env
+backend/.env
+frontend/.env
+
