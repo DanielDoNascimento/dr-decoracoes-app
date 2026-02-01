@@ -27,6 +27,37 @@ export default function NovoProdutoScreen() {
   const [quantidadeEstoque, setQuantidadeEstoque] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
+  // Validações
+  const [valorError, setValorError] = useState('');
+  const [estoqueError, setEstoqueError] = useState('');
+
+  const validarValorUnitario = (valor: string) => {
+    setValorUnitario(valor);
+    const num = parseFloat(valor);
+    if (valor && (isNaN(num) || num <= 0)) {
+      setValorError('Informe um valor maior que 0');
+    } else {
+      setValorError('');
+    }
+  };
+
+  const validarQuantidadeEstoque = (quantidade: string) => {
+    setQuantidadeEstoque(quantidade);
+    const num = parseInt(quantidade);
+    if (quantidade && (isNaN(num) || num < 0)) {
+      setEstoqueError('Quantidade não pode ser negativa');
+    } else {
+      setEstoqueError('');
+    }
+  };
+
+  const isFormularioValido = () => {
+    if (!nome.trim() || !categoria.trim()) return false;
+    if (!valorUnitario || parseFloat(valorUnitario) <= 0) return false;
+    if (!quantidadeEstoque || parseInt(quantidadeEstoque) < 0) return false;
+    return true;
+  };
+
   const validarCampos = () => {
     if (!nome.trim()) {
       Alert.alert('Erro', 'Nome é obrigatório');
