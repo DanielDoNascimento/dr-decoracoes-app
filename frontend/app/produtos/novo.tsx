@@ -109,9 +109,12 @@ export default function NovoProdutoScreen() {
         throw new Error(error.detail || 'Erro ao salvar produto');
       }
 
-      Alert.alert('Sucesso', 'Produto cadastrado com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // Toast de sucesso - usar Alert simples
+      setTimeout(() => {
+        Alert.alert('✓ Sucesso', 'Produto criado com sucesso', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }, 100);
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao salvar produto');
     } finally {
