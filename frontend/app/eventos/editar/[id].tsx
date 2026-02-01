@@ -118,8 +118,8 @@ export default function EditarEventoScreen() {
       setCliente(data.cliente);
       setTelefone(data.telefone);
       setLocal(data.local);
-      setValorFrete(data.valorFrete.toString());
-      setValorOrganizacao(data.valorOrganizacao.toString());
+      setValorFrete(numeroParaMoeda(data.valorFrete));
+      setValorOrganizacao(numeroParaMoeda(data.valorOrganizacao));
       setObservacoes(data.observacoes || '');
       setStatus(data.status);
       setItens(data.itens || []);
