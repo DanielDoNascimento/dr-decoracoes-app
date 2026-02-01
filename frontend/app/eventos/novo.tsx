@@ -211,18 +211,14 @@ export default function NovoEventoScreen() {
       const inicio = combinarDataHora(dataInicio, horaInicio);
       const fim = combinarDataHora(dataFim, horaFim);
 
-      // Converter valores monetários (remover pontos e converter vírgula em ponto)
-      const freteValue = parseFloat(valorFrete.replace(/\./g, '').replace(',', '.')) || 0;
-      const organizacaoValue = parseFloat(valorOrganizacao.replace(/\./g, '').replace(',', '.')) || 0;
-
       const evento = {
         cliente: cliente.trim(),
         telefone: telefone.trim(),
         dataHoraInicio: inicio.toISOString(),
         dataHoraFim: fim.toISOString(),
         local: local.trim(),
-        valorFrete: freteValue,
-        valorOrganizacao: organizacaoValue,
+        valorFrete: moedaParaNumero(valorFrete),
+        valorOrganizacao: moedaParaNumero(valorOrganizacao),
         observacoes: observacoes.trim(),
         itens,
         status: 'orçamento',
