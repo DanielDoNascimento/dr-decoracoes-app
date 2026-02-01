@@ -341,6 +341,7 @@ const styles = StyleSheet.create({
   },
   eventoInfoTextAtrasado: {
     color: '#FF6B6B',
+    fontWeight: '600',
   },
   eventoFooter: {
     flexDirection: 'row',
