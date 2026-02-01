@@ -466,6 +466,9 @@ export default function EditarEventoScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.itemCodigo}>#{item.codigoProduto}</Text>
+                <Text style={styles.itemValorUnitario}>
+                  Valor unitário: {formatMoeda(item.valorUnitario)}
+                </Text>
                 <View style={styles.itemFooter}>
                   <View style={styles.quantidadeContainer}>
                     <Text style={styles.itemLabel}>Qtd:</Text>
