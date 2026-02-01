@@ -186,19 +186,23 @@ export default function DetalhesEventoScreen() {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          {/* Status Card */}
+          {/* Status Card - Clicável */}
           <TouchableOpacity 
             style={styles.statusCard}
             onPress={mostrarOpcoesStatus}
             disabled={atualizandoStatus}
+            activeOpacity={0.7}
           >
             <View style={styles.statusCardHeader}>
-              <Text style={styles.statusCardLabel}>Status do Evento</Text>
-              <Ionicons name="chevron-down" size={20} color="#999" />
+              <Text style={styles.statusCardLabel}>Status do Evento (Toque para alterar)</Text>
+              <Ionicons name="chevron-down" size={20} color="#FFB6C1" />
             </View>
             <View style={[styles.statusBadgeLarge, styles[`status_${evento.status}`]]}>
               <Text style={styles.statusBadgeText}>{evento.status.toUpperCase()}</Text>
             </View>
+            {atualizandoStatus && (
+              <ActivityIndicator size="small" color="#FFB6C1" style={{ marginTop: 8 }} />
+            )}
           </TouchableOpacity>
 
           {/* Cliente */}
