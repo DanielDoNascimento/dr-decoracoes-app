@@ -354,6 +354,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFB6C1',
   },
   statusCardHeader: {
     flexDirection: 'row',
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statusCardLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     fontWeight: '600',
   },
