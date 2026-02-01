@@ -121,6 +121,50 @@ export default function EventosScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Filtro Rápido */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterButton, !filtroStatus && styles.filterButtonActive]}
+          onPress={() => setFiltroStatus(null)}
+        >
+          <Text style={[styles.filterText, !filtroStatus && styles.filterTextActive]}>
+            Todos
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filtroStatus === 'orçamento' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFiltroStatus('orçamento')}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              filtroStatus === 'orçamento' && styles.filterTextActive,
+            ]}
+          >
+            Orçamento
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filtroStatus === 'pendente' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFiltroStatus('pendente')}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              filtroStatus === 'pendente' && styles.filterTextActive,
+            ]}
+          >
+            Pendente
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFB6C1" />
