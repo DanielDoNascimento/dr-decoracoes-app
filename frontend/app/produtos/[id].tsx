@@ -109,9 +109,12 @@ export default function EditarProdutoScreen() {
         throw new Error(error.detail || 'Erro ao salvar produto');
       }
 
-      Alert.alert('Sucesso', 'Produto atualizado com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // Toast de sucesso
+      setTimeout(() => {
+        Alert.alert('✓ Sucesso', 'Produto atualizado com sucesso', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }, 100);
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao salvar produto');
     } finally {
