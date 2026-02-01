@@ -737,6 +737,11 @@ const styles = StyleSheet.create({
   itemCodigo: {
     fontSize: 12,
     color: '#999',
+    marginBottom: 4,
+  },
+  itemValorUnitario: {
+    fontSize: 13,
+    color: '#666',
     marginBottom: 12,
   },
   itemFooter: {
