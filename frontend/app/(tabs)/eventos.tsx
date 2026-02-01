@@ -278,6 +278,9 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 8,
   },
+  eventoInfoTextAtrasado: {
+    color: '#FF6B6B',
+  },
   eventoFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
