@@ -200,9 +200,9 @@ export default function NovoProdutoScreen() {
         {/* Botão Fixo no Rodapé */}
         <View style={styles.fixedFooter}>
           <TouchableOpacity
-            style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+            style={[styles.saveButton, (loading || !isFormularioValido()) && styles.saveButtonDisabled]}
             onPress={salvarProduto}
-            disabled={loading}
+            disabled={loading || !isFormularioValido()}
           >
             {loading ? (
               <ActivityIndicator color="#FFF" />
