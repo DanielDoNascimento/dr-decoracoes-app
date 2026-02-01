@@ -255,6 +255,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#FFB6C1',
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  filterTextActive: {
+    color: '#FFF',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
