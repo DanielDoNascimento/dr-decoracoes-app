@@ -52,6 +52,35 @@ export default function NovoEventoScreen() {
   const [valorOrganizacao, setValorOrganizacao] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
+  // Função para formatar como moeda
+  const formatarMoeda = (valor: string) => {
+    // Remove tudo que não é número
+    const apenas_numeros = valor.replace(/\D/g, '');
+    
+    // Converte para número e formata
+    const numero = Number(apenas_numeros) / 100;
+    
+    return numero.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  };
+
+  const handleValorFreteChange = (text: string) => {
+    const formatted = formatarMoeda(text);
+    setValorFrete(formatted);
+  };
+
+  const handleValorOrganizacaoChange = (text: string) => {
+    const formatted = formatarMoeda(text);
+    setValorOrganizacao(formatted);
+  };
+
+  // Função para converter moeda formatada para número
+  const moedaParaNumero = (valor: string): number => {
+    return parseFloat(valor.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+  };
+
   // Datas e horários
   const [dataInicio, setDataInicio] = useState(new Date());
   const [horaInicio, setHoraInicio] = useState(new Date());
