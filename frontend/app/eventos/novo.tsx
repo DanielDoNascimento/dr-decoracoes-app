@@ -345,23 +345,25 @@ export default function NovoEventoScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Valor do Frete (R$) *</Text>
-              <TextInput
+              <MaskInput
                 style={styles.input}
                 value={valorFrete}
-                onChangeText={setValorFrete}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
+                onChangeText={(masked, unmasked) => setValorFrete(unmasked)}
+                mask={Masks.BRL_CURRENCY}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Valor Organização (R$)</Text>
-              <TextInput
+              <MaskInput
                 style={styles.input}
                 value={valorOrganizacao}
-                onChangeText={setValorOrganizacao}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
+                onChangeText={(masked, unmasked) => setValorOrganizacao(unmasked)}
+                mask={Masks.BRL_CURRENCY}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
               />
             </View>
 
