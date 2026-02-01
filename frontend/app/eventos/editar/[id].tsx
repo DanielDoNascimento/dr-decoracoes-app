@@ -68,6 +68,39 @@ export default function EditarEventoScreen() {
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState('');
 
+  // Função para formatar como moeda
+  const formatarMoeda = (valor: string) => {
+    const apenas_numeros = valor.replace(/\D/g, '');
+    const numero = Number(apenas_numeros) / 100;
+    return numero.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  };
+
+  const handleValorFreteChange = (text: string) => {
+    const formatted = formatarMoeda(text);
+    setValorFrete(formatted);
+  };
+
+  const handleValorOrganizacaoChange = (text: string) => {
+    const formatted = formatarMoeda(text);
+    setValorOrganizacao(formatted);
+  };
+
+  // Função para converter moeda formatada para número
+  const moedaParaNumero = (valor: string): number => {
+    return parseFloat(valor.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+  };
+
+  // Função para converter número para moeda formatada
+  const numeroParaMoeda = (valor: number): string => {
+    return valor.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  };
+
   useEffect(() => {
     carregarEvento();
   }, []);
