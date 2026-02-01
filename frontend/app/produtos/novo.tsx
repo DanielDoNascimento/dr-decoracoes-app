@@ -275,6 +275,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  inputError: {
+    borderColor: '#FF6B6B',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    marginTop: 4,
+    marginLeft: 4,
+  },
   textArea: {
     minHeight: 100,
     paddingTop: 12,
