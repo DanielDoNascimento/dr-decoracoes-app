@@ -145,9 +145,12 @@ export default function EditarProdutoScreen() {
         throw new Error(error.detail || 'Erro ao excluir produto');
       }
 
-      Alert.alert('Sucesso', 'Produto excluído com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // Toast de sucesso
+      setTimeout(() => {
+        Alert.alert('✓ Sucesso', 'Produto excluído', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }, 100);
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao excluir produto');
     } finally {
