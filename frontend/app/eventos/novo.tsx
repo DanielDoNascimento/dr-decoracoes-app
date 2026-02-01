@@ -377,11 +377,10 @@ export default function NovoEventoScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Valor do Frete (R$) *</Text>
-              <MaskInput
+              <TextInput
                 style={styles.input}
                 value={valorFrete}
-                onChangeText={(masked, unmasked) => setValorFrete(unmasked)}
-                mask={Masks.BRL_CURRENCY}
+                onChangeText={handleValorFreteChange}
                 placeholder="R$ 0,00"
                 keyboardType="numeric"
               />
@@ -389,11 +388,10 @@ export default function NovoEventoScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Valor Organização (R$)</Text>
-              <MaskInput
+              <TextInput
                 style={styles.input}
                 value={valorOrganizacao}
-                onChangeText={(masked, unmasked) => setValorOrganizacao(unmasked)}
-                mask={Masks.BRL_CURRENCY}
+                onChangeText={handleValorOrganizacaoChange}
                 placeholder="R$ 0,00"
                 keyboardType="numeric"
               />
