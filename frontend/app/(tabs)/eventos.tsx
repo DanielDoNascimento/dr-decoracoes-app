@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { useFocusEffect, useRouter } from 'expo-router';
+import { listEventos } from '../../services/api';
 
 interface Evento {
   id: string;
@@ -30,30 +28,33 @@ export default function EventosScreen() {
   const router = useRouter();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<string>('orçamento');
 
   const fetchEventos = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/eventos`);
-      if (!response.ok) throw new Error('Erro ao carregar eventos');
-      const data = await response.json();
-      // Filtrar apenas orçamentos e pendentes e ordenar por data
+      const data = await listEventos();
+      // Filtrar apenas orçamentos, pendentes e realizados e ordenar por data
       const eventosFiltrados = data
-        .filter((e: Evento) => e.status === 'orçamento' || e.status === 'pendente')
+        .filter(
+          (e: Evento) =>
+            e.status === 'orçamento' || e.status === 'pendente' || e.status === 'realizado'
+        )
         .sort((a: Evento, b: Evento) => 
           new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
         );
       setEventos(eventosFiltrados);
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível carregar os eventos');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchEventos();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchEventos();
+    }, [])
+  );
 
   const formatData = (dataISO: string) => {
     const date = new Date(dataISO);
@@ -79,35 +80,7 @@ export default function EventosScreen() {
     return dataEvento < agora;
   };
 
-  const eventosFiltrados = filtroStatus
-    ? eventos.filter((e) => e.status === filtroStatus)
-    : eventos;
-
-  const renderEvento = ({ item }: { item: Evento }) => (
-    <TouchableOpacity 
-      style={styles.eventoCard}
-      onPress={() => router.push(`/eventos/${item.id}`)}
-    >
-      <View style={styles.eventoHeader}>
-        <Text style={styles.eventoCliente}>{item.cliente}</Text>
-        <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
-          <Text style={styles.statusText}>{item.status}</Text>
-        </View>
-      </View>
-      <View style={styles.eventoInfo}>
-        <Ionicons name="calendar" size={16} color="#666" />
-        <Text style={styles.eventoInfoText}>{formatData(item.dataHoraInicio)}</Text>
-      </View>
-      <View style={styles.eventoInfo}>
-        <Ionicons name="location" size={16} color="#666" />
-        <Text style={styles.eventoInfoText}>{item.local}</Text>
-      </View>
-      <View style={styles.eventoFooter}>
-        <Text style={styles.eventoValor}>{formatMoeda(item.totalGeral)}</Text>
-        <Ionicons name="chevron-forward" size={20} color="#999" />
-      </View>
-    </TouchableOpacity>
-  );
+  const eventosFiltrados = eventos.filter((e) => e.status === filtroStatus);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -123,14 +96,6 @@ export default function EventosScreen() {
 
       {/* Filtro Rápido */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterButton, !filtroStatus && styles.filterButtonActive]}
-          onPress={() => setFiltroStatus(null)}
-        >
-          <Text style={[styles.filterText, !filtroStatus && styles.filterTextActive]}>
-            Todos
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.filterButton,
@@ -161,6 +126,22 @@ export default function EventosScreen() {
             ]}
           >
             Pendente
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filtroStatus === 'realizado' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFiltroStatus('realizado')}
+        >
+          <Text
+            style={[
+              styles.filterText,
+              filtroStatus === 'realizado' && styles.filterTextActive,
+            ]}
+          >
+            Realizados
           </Text>
         </TouchableOpacity>
       </View>
@@ -323,6 +304,9 @@ const styles = StyleSheet.create({
   },
   status_pendente: {
     backgroundColor: '#D1ECF1',
+  },
+  status_realizado: {
+    backgroundColor: '#D4EDDA',
   },
   statusText: {
     fontSize: 12,

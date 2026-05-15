@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: dr-decoracoes-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: MONGO_URL
+        sync: false       # definir no dashboard do Render
+      - key: DB_NAME
+        value: dr_decoracoes
+      - key: API_KEY
+        sync: false       # definir no dashboard do Render
+      - key: CORS_ORIGINS
+        sync: false       # ex: https://meuapp.com,https://www.meuapp.com

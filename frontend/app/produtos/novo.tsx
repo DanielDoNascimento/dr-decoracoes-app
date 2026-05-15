@@ -11,15 +11,14 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { createProduto } from '../../services/api';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NovoProdutoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
@@ -31,10 +30,23 @@ export default function NovoProdutoScreen() {
   const [valorError, setValorError] = useState('');
   const [estoqueError, setEstoqueError] = useState('');
 
+  const formatCurrency = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    const number = Number(digits) / 100;
+    return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  const parseCurrency = (value: string) => {
+    return parseFloat(
+      value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
+    ) || 0;
+  };
+
   const validarValorUnitario = (valor: string) => {
-    setValorUnitario(valor);
-    const num = parseFloat(valor);
-    if (valor && (isNaN(num) || num <= 0)) {
+    const formatted = formatCurrency(valor);
+    setValorUnitario(formatted);
+    const num = parseCurrency(formatted);
+    if (formatted && num <= 0) {
       setValorError('Informe um valor maior que 0');
     } else {
       setValorError('');
@@ -53,7 +65,7 @@ export default function NovoProdutoScreen() {
 
   const isFormularioValido = () => {
     if (!nome.trim() || !categoria.trim()) return false;
-    if (!valorUnitario || parseFloat(valorUnitario) <= 0) return false;
+    if (!valorUnitario || parseCurrency(valorUnitario) <= 0) return false;
     if (!quantidadeEstoque || parseInt(quantidadeEstoque) < 0) return false;
     return true;
   };
@@ -67,7 +79,7 @@ export default function NovoProdutoScreen() {
       Alert.alert('Erro', 'Categoria é obrigatória');
       return false;
     }
-    if (!valorUnitario || isNaN(parseFloat(valorUnitario))) {
+    if (!valorUnitario || isNaN(parseCurrency(valorUnitario))) {
       Alert.alert('Erro', 'Valor unitário inválido');
       return false;
     }
@@ -87,27 +99,13 @@ export default function NovoProdutoScreen() {
 
     setLoading(true);
     try {
-      const produto = {
-        codigo: '', // Será gerado automaticamente no backend
+      await createProduto({
         nome: nome.trim(),
         categoria: categoria.trim(),
-        valorUnitario: parseFloat(valorUnitario),
+        valorUnitario: parseCurrency(valorUnitario),
         quantidadeEstoque: parseInt(quantidadeEstoque),
         observacoes: observacoes.trim(),
-      };
-
-      const response = await fetch(`${API_URL}/api/produtos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(produto),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao salvar produto');
-      }
 
       // Toast de sucesso - usar Alert simples
       setTimeout(() => {
@@ -138,7 +136,7 @@ export default function NovoProdutoScreen() {
       >
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
           <View style={styles.form}>
             <View style={styles.inputGroup}>
@@ -201,7 +199,7 @@ export default function NovoProdutoScreen() {
         </ScrollView>
 
         {/* Botão Fixo no Rodapé */}
-        <View style={styles.fixedFooter}>
+        <View style={[styles.fixedFooter, { paddingBottom: 16 + insets.bottom }]}>
           <TouchableOpacity
             style={[styles.saveButton, (loading || !isFormularioValido()) && styles.saveButtonDisabled]}
             onPress={salvarProduto}

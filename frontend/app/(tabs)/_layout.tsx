@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -12,8 +14,8 @@ export default function TabsLayout() {
           backgroundColor: '#FFF',
           borderTopWidth: 1,
           borderTopColor: '#E5E5E5',
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom + 16,
+          paddingBottom: 16 + insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
@@ -50,11 +52,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="historico"
+        name="financeiro"
         options={{
-          title: 'Histórico',
+          title: 'Financeiro',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time" size={size} color={color} />
+            <Ionicons name="cash-outline" size={size} color={color} />
           ),
         }}
       />

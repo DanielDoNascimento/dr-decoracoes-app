@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { useFocusEffect, useRouter } from 'expo-router';
+import { listProdutos } from '../../services/api';
 
 interface Produto {
   id: string;
@@ -34,23 +32,20 @@ export default function ProdutosScreen() {
 
   const fetchProdutos = async (searchTerm: string = '') => {
     try {
-      const url = searchTerm
-        ? `${API_URL}/api/produtos?busca=${encodeURIComponent(searchTerm)}`
-        : `${API_URL}/api/produtos`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Erro ao carregar produtos');
-      const data = await response.json();
+      const data = await listProdutos(searchTerm);
       setProdutos(data);
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível carregar os produtos');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchProdutos();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProdutos();
+    }, [])
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {

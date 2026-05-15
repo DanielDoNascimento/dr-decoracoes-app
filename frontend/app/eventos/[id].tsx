@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,12 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { getEventoById, updateEventoStatus } from '../../services/api';
 
 interface ItemEvento {
   produtoId: string;
@@ -33,11 +32,15 @@ interface Evento {
   local: string;
   valorFrete: number;
   valorOrganizacao: number;
+  outrosValores: { descricao: string; valor: number }[];
+  despesasTotais: number;
   status: string;
   observacoes: string;
   itens: ItemEvento[];
   totalProdutos: number;
   totalGeral: number;
+  receitaTotal: number;
+  lucroEvento: number;
 }
 
 export default function DetalhesEventoScreen() {
@@ -46,24 +49,26 @@ export default function DetalhesEventoScreen() {
   const [loading, setLoading] = useState(true);
   const [evento, setEvento] = useState<Evento | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
 
-  useEffect(() => {
-    carregarEvento();
-  }, []);
-
-  const carregarEvento = async () => {
+  const carregarEvento = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/eventos/${id}`);
-      if (!response.ok) throw new Error('Erro ao carregar evento');
-      const data = await response.json();
+      const data = await getEventoById(String(id));
+      if (!data) {
+        throw new Error('Evento não encontrado');
+      }
       setEvento(data);
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível carregar o evento');
       router.back();
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    carregarEvento();
+  }, [carregarEvento]);
 
   const formatData = (dataISO: string) => {
     const date = new Date(dataISO);
@@ -83,19 +88,24 @@ export default function DetalhesEventoScreen() {
     });
   };
 
+  const formatTelefone = (input: string) => {
+    const digits = input.replace(/\D/g, '');
+    if (digits.length <= 10) {
+      return digits
+        .replace(/^(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+        .slice(0, 14);
+    }
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
+  };
+
   const alterarStatus = async (novoStatus: string) => {
     setAtualizandoStatus(true);
     try {
-      const response = await fetch(`${API_URL}/api/eventos/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: novoStatus }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao atualizar status');
-      }
+      await updateEventoStatus(String(id), novoStatus);
 
       Alert.alert('Sucesso', 'Status atualizado com sucesso!');
       carregarEvento();
@@ -106,54 +116,10 @@ export default function DetalhesEventoScreen() {
     }
   };
 
-  const confirmarExclusao = () => {
-    Alert.alert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir este evento?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: excluirEvento },
-      ]
-    );
-  };
-
-  const excluirEvento = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/eventos/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao excluir evento');
-      }
-
-      Alert.alert('Sucesso', 'Evento excluído com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao excluir evento');
-    }
-  };
-
   const mostrarOpcoesStatus = () => {
-    const opcoes = [
-      { text: 'Orçamento', value: 'orçamento' },
-      { text: 'Pendente', value: 'pendente' },
-      { text: 'Realizado', value: 'realizado' },
-      { text: 'Cancelado', value: 'cancelado' },
-      { text: 'Cancelar', style: 'cancel' as const },
-    ];
-
-    Alert.alert(
-      'Alterar Status',
-      'Selecione o novo status do evento:',
-      opcoes.slice(0, -1).map(op => ({
-        text: op.text,
-        onPress: () => alterarStatus(op.value),
-      })).concat([opcoes[opcoes.length - 1]])
-    );
+    setStatusModalVisible(true);
   };
+
 
   if (loading) {
     return (
@@ -214,7 +180,7 @@ export default function DetalhesEventoScreen() {
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="call" size={20} color="#FFB6C1" />
-              <Text style={styles.infoText}>{evento.telefone}</Text>
+              <Text style={styles.infoText}>{formatTelefone(evento.telefone)}</Text>
             </View>
           </View>
 
@@ -265,7 +231,7 @@ export default function DetalhesEventoScreen() {
             <Text style={styles.sectionTitle}>Valores</Text>
             <View style={styles.totaisCard}>
               <View style={styles.totaisRow}>
-                <Text style={styles.totaisLabel}>Produtos:</Text>
+                <Text style={styles.totaisLabel}>Total Produtos:</Text>
                 <Text style={styles.totaisValor}>{formatMoeda(evento.totalProdutos)}</Text>
               </View>
               <View style={styles.totaisRow}>
@@ -273,11 +239,34 @@ export default function DetalhesEventoScreen() {
                 <Text style={styles.totaisValor}>{formatMoeda(evento.valorFrete)}</Text>
               </View>
               <View style={styles.totaisRow}>
-                <Text style={styles.totaisLabel}>Organização:</Text>
+                <Text style={styles.totaisLabel}>Mão de obra:</Text>
                 <Text style={styles.totaisValor}>{formatMoeda(evento.valorOrganizacao)}</Text>
               </View>
+              {evento.outrosValores.length > 0 && (
+                <>
+                  <View style={styles.outrosValoresHeader}>
+                    <Text style={styles.totaisLabel}>Outros valores:</Text>
+                  </View>
+                  {evento.outrosValores.map((item, index) => (
+                    <View key={index} style={styles.outrosValoresRow}>
+                      <Text style={styles.outrosValoresLabel}>{item.descricao}</Text>
+                      <Text style={styles.totaisValor}>{formatMoeda(item.valor)}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
               <View style={[styles.totaisRow, styles.totaisRowFinal]}>
-                <Text style={styles.totaisLabelFinal}>Total Geral:</Text>
+                <Text style={styles.totaisLabelFinal}>Total de despesas:</Text>
+                <Text style={styles.totaisValorFinal}>{formatMoeda(evento.despesasTotais)}</Text>
+              </View>
+
+              <View style={[styles.totaisRow, styles.totaisRowFinal]}>
+                <Text style={styles.totaisLabelFinal}>Lucro do evento:</Text>
+                <Text style={styles.totaisValorFinal}>{formatMoeda(evento.lucroEvento)}</Text>
+              </View>
+
+              <View style={[styles.totaisRow, styles.totaisRowFinal]}>
+                <Text style={styles.totaisLabelFinal}>TOTAL DO EVENTO:</Text>
                 <Text style={styles.totaisValorFinal}>{formatMoeda(evento.totalGeral)}</Text>
               </View>
             </View>
@@ -290,8 +279,49 @@ export default function DetalhesEventoScreen() {
               <Text style={styles.observacoes}>{evento.observacoes}</Text>
             </View>
           )}
+
         </View>
       </ScrollView>
+
+      <Modal
+        visible={statusModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setStatusModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Alterar Status</Text>
+              <TouchableOpacity onPress={() => setStatusModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>Selecione o novo status do evento:</Text>
+            {[
+              { label: 'Orçamento', value: 'orçamento' },
+              { label: 'Pendente', value: 'pendente' },
+              { label: 'Realizado', value: 'realizado' },
+              { label: 'Cancelado', value: 'cancelado' },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.value}
+                style={styles.modalOption}
+                onPress={async () => {
+                  setStatusModalVisible(false);
+                  await alterarStatus(item.value);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -382,14 +412,14 @@ const styles = StyleSheet.create({
   status_orçamento: {
     backgroundColor: '#FFF3CD',
   },
+  status_cancelado: {
+    backgroundColor: '#F8D7DA',
+  },
   status_pendente: {
     backgroundColor: '#D1ECF1',
   },
   status_realizado: {
     backgroundColor: '#D4EDDA',
-  },
-  status_cancelado: {
-    backgroundColor: '#F8D7DA',
   },
   section: {
     backgroundColor: '#FFF',
@@ -484,6 +514,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  outrosValoresHeader: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  outrosValoresRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingLeft: 12,
+  },
+  outrosValoresLabel: {
+    fontSize: 14,
+    color: '#888',
+    flex: 1,
+    marginRight: 8,
+  },
   totaisValor: {
     fontSize: 14,
     fontWeight: '600',
@@ -498,6 +544,43 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFB6C1',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#777',
+    marginBottom: 12,
+  },
+  modalOption: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
   },
   observacoes: {
     fontSize: 14,

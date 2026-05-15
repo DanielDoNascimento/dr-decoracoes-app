@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,15 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { deleteProduto, getProdutoById, updateProduto } from '../../services/api';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditarProdutoScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [codigo, setCodigo] = useState('');
@@ -30,29 +29,45 @@ export default function EditarProdutoScreen() {
   const [quantidadeEstoque, setQuantidadeEstoque] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
-  useEffect(() => {
-    carregarProduto();
-  }, []);
+  const formatCurrency = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    const number = Number(digits) / 100;
+    return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
 
-  const carregarProduto = async () => {
+  const formatCurrencyFromNumber = (value: number) =>
+    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const parseCurrency = (value: string) => {
+    return parseFloat(
+      value.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
+    ) || 0;
+  };
+
+  const carregarProduto = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/produtos/${id}`);
-      if (!response.ok) throw new Error('Erro ao carregar produto');
-      const data = await response.json();
+      const data = await getProdutoById(String(id));
+      if (!data) {
+        throw new Error('Produto não encontrado');
+      }
       
       setCodigo(data.codigo);
       setNome(data.nome);
       setCategoria(data.categoria);
-      setValorUnitario(data.valorUnitario.toString());
+      setValorUnitario(formatCurrencyFromNumber(data.valorUnitario));
       setQuantidadeEstoque(data.quantidadeEstoque.toString());
       setObservacoes(data.observacoes || '');
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível carregar o produto');
       router.back();
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    carregarProduto();
+  }, [carregarProduto]);
 
   const validarCampos = () => {
     if (!codigo.trim()) {
@@ -67,7 +82,7 @@ export default function EditarProdutoScreen() {
       Alert.alert('Erro', 'Categoria é obrigatória');
       return false;
     }
-    if (!valorUnitario || isNaN(parseFloat(valorUnitario))) {
+    if (!valorUnitario || isNaN(parseCurrency(valorUnitario))) {
       Alert.alert('Erro', 'Valor unitário inválido');
       return false;
     }
@@ -87,27 +102,13 @@ export default function EditarProdutoScreen() {
 
     setSaving(true);
     try {
-      const produto = {
-        codigo: codigo.trim(),
+      await updateProduto(String(id), {
         nome: nome.trim(),
         categoria: categoria.trim(),
-        valorUnitario: parseFloat(valorUnitario),
+        valorUnitario: parseCurrency(valorUnitario),
         quantidadeEstoque: parseInt(quantidadeEstoque),
         observacoes: observacoes.trim(),
-      };
-
-      const response = await fetch(`${API_URL}/api/produtos/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(produto),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao salvar produto');
-      }
 
       // Toast de sucesso
       setTimeout(() => {
@@ -136,14 +137,7 @@ export default function EditarProdutoScreen() {
   const excluirProduto = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/api/produtos/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao excluir produto');
-      }
+      await deleteProduto(String(id));
 
       // Toast de sucesso
       setTimeout(() => {
@@ -186,7 +180,7 @@ export default function EditarProdutoScreen() {
       >
         <ScrollView 
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
           <View style={styles.form}>
             <View style={styles.inputGroup}>
@@ -221,7 +215,7 @@ export default function EditarProdutoScreen() {
               <TextInput
                 style={styles.input}
                 value={valorUnitario}
-                onChangeText={setValorUnitario}
+                onChangeText={(text) => setValorUnitario(formatCurrency(text))}
                 placeholder="0.00"
                 keyboardType="decimal-pad"
               />
@@ -254,7 +248,7 @@ export default function EditarProdutoScreen() {
         </ScrollView>
 
         {/* Botão Fixo no Rodapé */}
-        <View style={styles.fixedFooter}>
+        <View style={[styles.fixedFooter, { paddingBottom: 16 + insets.bottom }]}>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={salvarProduto}

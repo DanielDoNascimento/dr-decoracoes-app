@@ -1,50 +1,87 @@
-# Welcome to your Expo app 👋
+# DR Decoracoes App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo mobile em Expo/React Native para gestao de produtos, eventos e financeiro, com armazenamento local em SQLite e backup opcional no Google Sheets.
 
-## Get started
+## Requisitos
 
-1. Install dependencies
+- Node.js 18+
+- Yarn 1.x
+- App `Expo Go` instalado no celular
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Instalar dependencias
 
 ```bash
-npm run reset-project
+cd frontend
+yarn install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Configurar ambiente
 
-## Learn more
+Crie `frontend/.env` a partir de `frontend/.env.example`.
 
-To learn more about developing your project with Expo, look at the following resources:
+Variaveis principais:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- `EXPO_PUBLIC_BACKUP_URL`: URL do Web App do Google Apps Script para backup
+- `EXPO_USE_FAST_RESOLVER=1`: mantem o resolver rapido do Expo
 
-## Join the community
+## Rodar no celular
 
-Join our community of developers creating universal apps.
+```bash
+cd frontend
+npx expo start -c
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+No terminal do Expo:
+
+1. Pressione `s` para garantir `Using Expo Go`
+2. Escaneie o QR code com o `Expo Go`
+
+Se aparecer `Using development build`, voce esta abrindo outro app instalado no celular. Nesse caso, volte para `Expo Go` pressionando `s`.
+
+## Backup automatico
+
+O app funciona sem internet usando SQLite local. O backup e opcional.
+
+Para ativar:
+
+1. Publique o script de [`docs/google-apps-script-backup.gs`](../docs/google-apps-script-backup.gs) como Web App
+2. Copie a URL para `frontend/.env` em `EXPO_PUBLIC_BACKUP_URL`
+3. Reinicie o Expo com `npx expo start -c`
+
+Quando configurado, o app tenta sincronizar automaticamente:
+
+- ao abrir o app
+- ao voltar para primeiro plano
+- quando a internet retorna
+
+## Qualidade
+
+```bash
+cd frontend
+yarn lint
+```
+
+## Gerar APK para compartilhar
+
+Para instalar o app como aplicativo normal no Android, sem `Expo Go`:
+
+```bash
+cd frontend
+npx eas login
+yarn build:android:apk
+```
+
+O comando usa o perfil `preview` do [`eas.json`](./eas.json), que gera um APK instalavel.
+
+Depois do build:
+
+1. abra o link retornado pelo EAS
+2. baixe o `.apk`
+3. envie o arquivo para o celular da pessoa ou compartilhe o link do build
+
+Se quiser preparar versao para Google Play depois, use:
+
+```bash
+cd frontend
+yarn build:android:store
+```

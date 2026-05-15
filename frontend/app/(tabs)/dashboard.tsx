@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { useFocusEffect, useRouter } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
+import { getLastSync, isBackupConfigured, syncBackup } from '../../services/backup';
+import { getDashboardData } from '../../services/api';
 
 interface Evento {
   id: string;
@@ -36,25 +36,27 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [eventosEstaSemana, setEventosEstaSemana] = useState(0);
+  const [backupConfigured, setBackupConfigured] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`${API_URL}/api/eventos/dashboard`);
-      if (!response.ok) throw new Error('Erro ao carregar dashboard');
-      const result = await response.json();
+      const result = await getDashboardData();
       setData(result);
-      
-      // Calcular eventos desta semana
+
       const hoje = new Date();
       const seteDiasDepois = new Date();
       seteDiasDepois.setDate(hoje.getDate() + 7);
-      
-      const eventosSemana = result.proximosEventos.filter((evento: Evento) => {
+
+      const eventosSemana = (result.proximosEventos || []).filter((evento: Evento) => {
         const dataEvento = new Date(evento.dataHoraInicio);
         return dataEvento >= hoje && dataEvento <= seteDiasDepois;
       });
-      
+
       setEventosEstaSemana(eventosSemana.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -62,11 +64,66 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboard();
+    }, [fetchDashboard])
+  );
 
   useEffect(() => {
-    fetchDashboard();
+    setBackupConfigured(isBackupConfigured());
+    getLastSync().then(setLastSync).catch(() => {});
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
+    });
+    return () => unsubscribe();
   }, []);
+
+  const handleManualSync = async () => {
+    if (!backupConfigured) {
+      setBackupMessage('Backup ainda não configurado');
+      return;
+    }
+    if (!isOnline) {
+      setBackupMessage('Sem internet no momento');
+      return;
+    }
+    setSyncing(true);
+    setBackupMessage(null);
+    try {
+      const result = await syncBackup('full');
+      const updated = await getLastSync();
+      setLastSync(updated);
+      if (result) {
+        const produtosEnviados = result.received?.Produtos ?? 0;
+        const eventosEnviados = result.received?.Eventos ?? 0;
+        const insertedTotal =
+          (result.inserted?.Produtos ?? 0) +
+          (result.inserted?.Eventos ?? 0) +
+          (result.inserted?.Evento_Produtos ?? 0);
+        const receivedTotal =
+          (result.received?.Produtos ?? 0) +
+          (result.received?.Eventos ?? 0) +
+          (result.received?.Evento_Produtos ?? 0);
+
+        if (receivedTotal > 0 && insertedTotal === 0) {
+          setBackupMessage('Backup em dia. Nenhum dado novo para sincronizar.');
+        } else {
+          setBackupMessage(
+            `Backup concluído: ${produtosEnviados} produtos, ${eventosEnviados} eventos enviados`
+          );
+        }
+      } else {
+        setBackupMessage('Backup sincronizado com sucesso');
+      }
+    } catch {
+      setBackupMessage('Não foi possível sincronizar. Seus dados continuam salvos no celular.');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -123,6 +180,30 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
+            {(backupConfigured || lastSync || backupMessage || syncing) && (
+              <View style={styles.backupContainer}>
+                <TouchableOpacity
+                  style={[styles.backupButton, (!backupConfigured || syncing) && styles.backupButtonDisabled]}
+                  onPress={handleManualSync}
+                  disabled={!backupConfigured || syncing}
+                >
+                  <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
+                  <Text style={styles.backupButtonText}>
+                    {syncing ? 'Sincronizando...' : 'Sincronizar Backup'}
+                  </Text>
+                </TouchableOpacity>
+                {!isOnline && (
+                  <Text style={styles.backupHint}>Sem internet no momento</Text>
+                )}
+                {lastSync && (
+                  <Text style={styles.backupHint}>Última sincronização: {new Date(lastSync).toLocaleString('pt-BR')}</Text>
+                )}
+                {backupMessage && (
+                  <Text style={styles.backupHint}>{backupMessage}</Text>
+                )}
+              </View>
+            )}
+
             {/* Card Clicável de Eventos Não Realizados */}
             <TouchableOpacity 
               style={styles.statsCard}
@@ -329,6 +410,33 @@ const styles = StyleSheet.create({
   },
   status_pendente: {
     backgroundColor: '#D1ECF1',
+  },
+  backupContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  backupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFB6C1',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  backupButtonDisabled: {
+    opacity: 0.6,
+  },
+  backupButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  backupHint: {
+    marginTop: 8,
+    color: '#999',
+    fontSize: 12,
+    textAlign: 'center',
   },
   status_realizado: {
     backgroundColor: '#D4EDDA',

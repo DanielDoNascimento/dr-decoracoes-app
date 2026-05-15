@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,11 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-import DateTimePicker from '@react-native-community/datetimepicker';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import { createEvento, getDisponibilidadeProdutos } from '../../services/api';
+import { DatePickerField } from '../../components/DatePickerField';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Produto {
   id: string;
@@ -40,8 +38,14 @@ interface ItemEvento {
   valorTotal: number;
 }
 
+type OutroValor = {
+  descricao: string;
+  valor: string;
+};
+
 export default function NovoEventoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
 
   // Dados do cliente
@@ -51,6 +55,7 @@ export default function NovoEventoScreen() {
   const [valorFrete, setValorFrete] = useState('');
   const [valorOrganizacao, setValorOrganizacao] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [outrosValores, setOutrosValores] = useState<OutroValor[]>([]);
 
   // Função para formatar como moeda
   const formatarMoeda = (valor: string) => {
@@ -76,50 +81,77 @@ export default function NovoEventoScreen() {
     setValorOrganizacao(formatted);
   };
 
+  const handleOutroValorChange = (index: number, campo: 'descricao' | 'valor', value: string) => {
+    const novos = [...outrosValores];
+    if (!novos[index]) {
+      novos[index] = { descricao: '', valor: '' };
+    }
+    if (campo === 'valor') {
+      novos[index][campo] = formatarMoeda(value);
+    } else {
+      novos[index][campo] = value;
+    }
+    setOutrosValores(novos);
+  };
+
+  const adicionarOutroValor = () => {
+    setOutrosValores((prev) => [...prev, { descricao: '', valor: '' }]);
+  };
+
+  const removerOutroValor = (index: number) => {
+    setOutrosValores((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Função para converter moeda formatada para número
   const moedaParaNumero = (valor: string): number => {
     return parseFloat(valor.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
   };
+
+  const formatTelefone = (input: string) => {
+    const digits = input.replace(/\D/g, '');
+    if (digits.length <= 10) {
+      return digits
+        .replace(/^(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+        .slice(0, 14);
+    }
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
+  };
+
+  const limparTelefone = (input: string) => input.replace(/\D/g, '');
 
   // Datas e horários
   const [dataInicio, setDataInicio] = useState(new Date());
   const [horaInicio, setHoraInicio] = useState(new Date());
   const [dataFim, setDataFim] = useState(new Date());
   const [horaFim, setHoraFim] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
-
   // Produtos
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [itens, setItens] = useState<ItemEvento[]>([]);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState('');
 
-  useEffect(() => {
-    buscarDisponibilidade();
-  }, [dataInicio, horaInicio, dataFim, horaFim]);
-
-  const buscarDisponibilidade = async () => {
+  const buscarDisponibilidade = useCallback(async () => {
     try {
       const inicio = combinarDataHora(dataInicio, horaInicio);
       const fim = combinarDataHora(dataFim, horaFim);
 
-      const response = await fetch(`${API_URL}/api/eventos/disponibilidade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dataHoraInicio: inicio.toISOString(),
-          dataHoraFim: fim.toISOString(),
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProdutos(data);
-      }
+      const data = await getDisponibilidadeProdutos(
+        inicio.toISOString(),
+        fim.toISOString()
+      );
+      setProdutos(data);
     } catch (error) {
       console.error('Erro ao buscar disponibilidade:', error);
     }
-  };
+  }, [dataFim, dataInicio, horaFim, horaInicio]);
+
+  useEffect(() => {
+    buscarDisponibilidade();
+  }, [buscarDisponibilidade]);
 
   const combinarDataHora = (data: Date, hora: Date) => {
     const resultado = new Date(data);
@@ -134,6 +166,12 @@ export default function NovoEventoScreen() {
     const jaAdicionado = itens.find((i) => i.produtoId === produto.id);
     if (jaAdicionado) {
       Alert.alert('Aviso', 'Produto já adicionado ao evento');
+      return;
+    }
+
+    const estoqueDisponivel = produto.estoqueDisponivel ?? produto.quantidadeEstoque;
+    if (estoqueDisponivel <= 0) {
+      Alert.alert('Erro', 'Produto sem disponibilidade para o período selecionado');
       return;
     }
 
@@ -154,9 +192,11 @@ export default function NovoEventoScreen() {
   const atualizarQuantidade = (index: number, novaQuantidade: string) => {
     const quantidade = parseInt(novaQuantidade) || 0;
     const produto = produtos.find((p) => p.id === itens[index].produtoId);
-    
-    if (produto && quantidade > (produto.estoqueDisponivel || produto.quantidadeEstoque)) {
-      Alert.alert('Erro', `Disponível apenas ${produto.estoqueDisponivel || produto.quantidadeEstoque} unidades`);
+
+    const estoqueDisponivel = produto?.estoqueDisponivel ?? produto?.quantidadeEstoque ?? 0;
+
+    if (produto && quantidade > estoqueDisponivel) {
+      Alert.alert('Erro', `Disponível apenas ${estoqueDisponivel} unidades`);
       return;
     }
 
@@ -166,6 +206,12 @@ export default function NovoEventoScreen() {
     setItens(novosItens);
   };
 
+  const alterarQuantidade = (index: number, delta: number) => {
+    const quantidadeAtual = itens[index]?.quantidade ?? 0;
+    const novaQuantidade = Math.max(0, quantidadeAtual + delta);
+    atualizarQuantidade(index, String(novaQuantidade));
+  };
+
   const removerProduto = (index: number) => {
     const novosItens = itens.filter((_, i) => i !== index);
     setItens(novosItens);
@@ -173,10 +219,14 @@ export default function NovoEventoScreen() {
 
   const calcularTotais = () => {
     const totalProdutos = itens.reduce((sum, item) => sum + item.valorTotal, 0);
-    const frete = parseFloat(valorFrete) || 0;
-    const organizacao = parseFloat(valorOrganizacao) || 0;
-    const totalGeral = totalProdutos + frete + organizacao;
-    return { totalProdutos, totalGeral };
+    const frete = moedaParaNumero(valorFrete);
+    const maoDeObra = moedaParaNumero(valorOrganizacao);
+    const outrosTotal = outrosValores.reduce(
+      (sum, item) => sum + moedaParaNumero(item.valor),
+      0
+    );
+    const totalGeral = totalProdutos + frete + maoDeObra + outrosTotal;
+    return { totalProdutos, totalGeral, outrosTotal };
   };
 
   const validarCampos = () => {
@@ -192,12 +242,23 @@ export default function NovoEventoScreen() {
       Alert.alert('Erro', 'Local do evento é obrigatório');
       return false;
     }
-    if (!valorFrete || isNaN(parseFloat(valorFrete))) {
+    const freteNumero = moedaParaNumero(valorFrete);
+    if (isNaN(freteNumero)) {
       Alert.alert('Erro', 'Valor do frete é obrigatório');
       return false;
     }
     if (itens.length === 0) {
       Alert.alert('Erro', 'Adicione pelo menos um produto ao evento');
+      return false;
+    }
+    if (itens.some((item) => item.quantidade <= 0)) {
+      Alert.alert('Erro', 'Todos os produtos devem ter quantidade maior que 0');
+      return false;
+    }
+    const inicio = combinarDataHora(dataInicio, horaInicio);
+    const fim = combinarDataHora(dataFim, horaFim);
+    if (fim <= inicio) {
+      Alert.alert('Erro', 'A data e hora de término devem ser maiores que o início');
       return false;
     }
     return true;
@@ -213,27 +274,24 @@ export default function NovoEventoScreen() {
 
       const evento = {
         cliente: cliente.trim(),
-        telefone: telefone.trim(),
+        telefone: limparTelefone(telefone),
         dataHoraInicio: inicio.toISOString(),
         dataHoraFim: fim.toISOString(),
         local: local.trim(),
         valorFrete: moedaParaNumero(valorFrete),
         valorOrganizacao: moedaParaNumero(valorOrganizacao),
+        outrosValores: outrosValores
+          .map((item) => ({
+            descricao: item.descricao.trim(),
+            valor: moedaParaNumero(item.valor),
+          }))
+          .filter((item) => item.descricao || item.valor > 0),
         observacoes: observacoes.trim(),
         itens,
         status: 'orçamento',
       };
 
-      const response = await fetch(`${API_URL}/api/eventos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(evento),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao salvar evento');
-      }
+      await createEvento(evento);
 
       Alert.alert('Sucesso', 'Evento criado com sucesso!', [
         { text: 'OK', onPress: () => router.back() },
@@ -258,7 +316,9 @@ export default function NovoEventoScreen() {
       p.codigo.toLowerCase().includes(buscaProduto.toLowerCase())
   );
 
-  const { totalProdutos, totalGeral } = calcularTotais();
+  const { totalProdutos, totalGeral, outrosTotal } = calcularTotais();
+  const despesasTotais = moedaParaNumero(valorFrete) + outrosTotal;
+  const lucroTotal = totalProdutos + moedaParaNumero(valorOrganizacao);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -274,7 +334,7 @@ export default function NovoEventoScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView style={styles.scrollView}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 32 + insets.bottom }}>
           <View style={styles.form}>
             <Text style={styles.sectionTitle}>Dados do Cliente</Text>
 
@@ -293,7 +353,7 @@ export default function NovoEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={telefone}
-                onChangeText={setTelefone}
+                onChangeText={(text) => setTelefone(formatTelefone(text))}
                 placeholder="(00) 00000-0000"
                 keyboardType="phone-pad"
               />
@@ -304,58 +364,22 @@ export default function NovoEventoScreen() {
             <View style={styles.dateRow}>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Data Início *</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker('dataInicio')}
-                >
-                  <Text style={styles.dateButtonText}>
-                    {dataInicio.toLocaleDateString('pt-BR')}
-                  </Text>
-                </TouchableOpacity>
+                <DatePickerField mode="date" value={dataInicio} onChange={setDataInicio} />
               </View>
-
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Hora Início *</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker('horaInicio')}
-                >
-                  <Text style={styles.dateButtonText}>
-                    {horaInicio.toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </TouchableOpacity>
+                <DatePickerField mode="time" value={horaInicio} onChange={setHoraInicio} />
               </View>
             </View>
 
             <View style={styles.dateRow}>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Data Fim *</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker('dataFim')}
-                >
-                  <Text style={styles.dateButtonText}>
-                    {dataFim.toLocaleDateString('pt-BR')}
-                  </Text>
-                </TouchableOpacity>
+                <DatePickerField mode="date" value={dataFim} onChange={setDataFim} />
               </View>
-
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Hora Fim *</Text>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker('horaFim')}
-                >
-                  <Text style={styles.dateButtonText}>
-                    {horaFim.toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </TouchableOpacity>
+                <DatePickerField mode="time" value={horaFim} onChange={setHoraFim} />
               </View>
             </View>
 
@@ -383,7 +407,7 @@ export default function NovoEventoScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Valor Organização (R$)</Text>
+              <Text style={styles.label}>Mão de obra (R$)</Text>
               <TextInput
                 style={styles.input}
                 value={valorOrganizacao}
@@ -391,6 +415,34 @@ export default function NovoEventoScreen() {
                 placeholder="R$ 0,00"
                 keyboardType="numeric"
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Outros Valores (despesas)</Text>
+              {outrosValores.map((item, index) => (
+                <View key={`outro-${index}`} style={styles.outroValorRow}>
+                  <TextInput
+                    style={[styles.input, styles.outroDescricao]}
+                    value={item.descricao}
+                    onChangeText={(text) => handleOutroValorChange(index, 'descricao', text)}
+                    placeholder="Descrição"
+                  />
+                  <TextInput
+                    style={[styles.input, styles.outroValor]}
+                    value={item.valor}
+                    onChangeText={(text) => handleOutroValorChange(index, 'valor', text)}
+                    placeholder="R$ 0,00"
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity onPress={() => removerOutroValor(index)}>
+                    <Ionicons name="close-circle" size={22} color="#FF6B6B" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.addOutroValorButton} onPress={adicionarOutroValor}>
+                <Ionicons name="add" size={20} color="#FFB6C1" />
+                <Text style={styles.addOutroValorText}>Adicionar outro valor</Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={styles.sectionTitle}>Produtos</Text>
@@ -411,19 +463,28 @@ export default function NovoEventoScreen() {
                     <Ionicons name="trash" size={20} color="#FF6B6B" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.itemCodigo}>#{item.codigoProdigo}</Text>
+                <Text style={styles.itemCodigo}>#{item.codigoProduto}</Text>
                 <Text style={styles.itemValorUnitario}>
                   Valor unitário: {formatMoeda(item.valorUnitario)}
                 </Text>
                 <View style={styles.itemFooter}>
                   <View style={styles.quantidadeContainer}>
                     <Text style={styles.itemLabel}>Qtd:</Text>
-                    <TextInput
-                      style={styles.quantidadeInput}
-                      value={item.quantidade.toString()}
-                      onChangeText={(text) => atualizarQuantidade(index, text)}
-                      keyboardType="number-pad"
-                    />
+                    <TouchableOpacity
+                      style={styles.quantidadeButton}
+                      onPress={() => alterarQuantidade(index, -1)}
+                    >
+                      <Ionicons name="remove" size={18} color="#FFF" />
+                    </TouchableOpacity>
+                    <View style={styles.quantidadeValueBox}>
+                      <Text style={styles.quantidadeValueText}>{item.quantidade}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.quantidadeButton}
+                      onPress={() => alterarQuantidade(index, 1)}
+                    >
+                      <Ionicons name="add" size={18} color="#FFF" />
+                    </TouchableOpacity>
                   </View>
                   <Text style={styles.itemValor}>{formatMoeda(item.valorTotal)}</Text>
                 </View>
@@ -451,17 +512,29 @@ export default function NovoEventoScreen() {
               <View style={styles.totaisRow}>
                 <Text style={styles.totaisLabel}>Frete:</Text>
                 <Text style={styles.totaisValor}>
-                  {formatMoeda(parseFloat(valorFrete) || 0)}
+                  {formatMoeda(moedaParaNumero(valorFrete))}
                 </Text>
               </View>
               <View style={styles.totaisRow}>
-                <Text style={styles.totaisLabel}>Organização:</Text>
+                <Text style={styles.totaisLabel}>Mão de obra:</Text>
                 <Text style={styles.totaisValor}>
-                  {formatMoeda(parseFloat(valorOrganizacao) || 0)}
+                  {formatMoeda(moedaParaNumero(valorOrganizacao))}
                 </Text>
               </View>
+              <View style={styles.totaisRow}>
+                <Text style={styles.totaisLabel}>Outras despesas:</Text>
+                <Text style={styles.totaisValor}>{formatMoeda(outrosTotal)}</Text>
+              </View>
               <View style={[styles.totaisRow, styles.totaisRowFinal]}>
-                <Text style={styles.totaisLabelFinal}>Total Geral:</Text>
+                <Text style={styles.totaisLabelFinal}>Total de despesas:</Text>
+                <Text style={styles.totaisValorFinal}>{formatMoeda(despesasTotais)}</Text>
+              </View>
+              <View style={[styles.totaisRow, styles.totaisRowFinal]}>
+                <Text style={styles.totaisLabelFinal}>Total de lucro:</Text>
+                <Text style={styles.totaisValorFinal}>{formatMoeda(lucroTotal)}</Text>
+              </View>
+              <View style={[styles.totaisRow, styles.totaisRowFinal]}>
+                <Text style={styles.totaisLabelFinal}>TOTAL DO EVENTO:</Text>
                 <Text style={styles.totaisValorFinal}>{formatMoeda(totalGeral)}</Text>
               </View>
             </View>
@@ -480,31 +553,6 @@ export default function NovoEventoScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={
-            showDatePicker === 'dataInicio'
-              ? dataInicio
-              : showDatePicker === 'horaInicio'
-              ? horaInicio
-              : showDatePicker === 'dataFim'
-              ? dataFim
-              : horaFim
-          }
-          mode={showDatePicker.includes('data') ? 'date' : 'time'}
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(null);
-            if (selectedDate) {
-              if (showDatePicker === 'dataInicio') setDataInicio(selectedDate);
-              else if (showDatePicker === 'horaInicio') setHoraInicio(selectedDate);
-              else if (showDatePicker === 'dataFim') setDataFim(selectedDate);
-              else if (showDatePicker === 'horaFim') setHoraFim(selectedDate);
-            }
-          }}
-        />
-      )}
 
       <Modal visible={showProdutoModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -535,7 +583,7 @@ export default function NovoEventoScreen() {
                     <Text style={styles.produtoNome}>{item.nome}</Text>
                     <Text style={styles.produtoCodigo}>#{item.codigo}</Text>
                     <Text style={styles.produtoDisponivel}>
-                      Disponível: {item.estoqueDisponivel || item.quantidadeEstoque} un.
+                      Disponível: {item.estoqueDisponivel ?? item.quantidadeEstoque} un.
                     </Text>
                   </View>
                   <Text style={styles.produtoValor}>{formatMoeda(item.valorUnitario)}</Text>
@@ -617,6 +665,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  outroValorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  outroDescricao: {
+    flex: 1,
+  },
+  outroValor: {
+    width: 120,
+  },
+  addOutroValorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  addOutroValorText: {
+    color: '#FFB6C1',
+    fontWeight: '600',
+  },
   textArea: {
     minHeight: 100,
     paddingTop: 12,
@@ -695,22 +765,41 @@ const styles = StyleSheet.create({
   quantidadeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   itemLabel: {
     fontSize: 14,
     color: '#666',
     marginRight: 8,
   },
-  quantidadeInput: {
-    backgroundColor: '#F5F5F5',
+  quantidadeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#FF8FA3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  quantidadeValueBox: {
+    minWidth: 64,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#2A2A2A',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    fontSize: 16,
-    width: 60,
-    textAlign: 'center',
+    borderColor: '#1A1A1A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  quantidadeValueText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFF',
   },
   itemValor: {
     fontSize: 16,

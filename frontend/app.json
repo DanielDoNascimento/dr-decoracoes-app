@@ -5,26 +5,33 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "drdecor acoes",
+    "scheme": "drdecoracoes",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.drdecor acoes.app"
+      "bundleIdentifier": "com.drdecoracoes.app"
     },
     "android": {
+      "newArchEnabled": false,
+      "jsEngine": "hermes",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFB6C1"
       },
-      "package": "com.drdecor acoes.app",
+      "package": "com.drdecoracoes.app",
+      "versionCode": 1,
       "permissions": [],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "D&R Decorações",
+      "lang": "pt-BR",
+      "themeColor": "#FFB6C1",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",
@@ -42,7 +49,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "backendUrl": "https://eventodr.preview.emergentagent.com"
+      "router": {},
+      "eas": {
+        "projectId": "bdc4b4d4-c3c7-4afc-9373-00e667f745ba"
+      }
     }
   }
 }
