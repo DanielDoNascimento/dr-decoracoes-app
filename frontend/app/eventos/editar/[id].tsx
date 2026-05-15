@@ -70,6 +70,7 @@ export default function EditarEventoScreen() {
   const [itens, setItens] = useState<ItemEvento[]>([]);
   const [showProdutoModal, setShowProdutoModal] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Função para formatar como moeda
   const formatarMoeda = (valor: string) => {
@@ -353,14 +354,7 @@ export default function EditarEventoScreen() {
   };
 
   const confirmarExclusao = () => {
-    Alert.alert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir este evento?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: excluirEvento },
-      ]
-    );
+    setShowDeleteModal(true);
   };
 
   const excluirEvento = async () => {
@@ -641,6 +635,41 @@ export default function EditarEventoScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+        <TouchableOpacity
+          style={styles.deleteModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDeleteModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.deleteModalContent}>
+            <View style={styles.deleteModalIcon}>
+              <Ionicons name="trash" size={32} color="#FF6B6B" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Excluir Evento</Text>
+            <Text style={styles.deleteModalMessage}>
+              Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancel}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteModalConfirm}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  excluirEvento();
+                }}
+              >
+                <Text style={styles.deleteModalConfirmText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal visible={showProdutoModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -1029,5 +1058,69 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  deleteModalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  deleteModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#666',
+  },
+  deleteModalConfirm: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

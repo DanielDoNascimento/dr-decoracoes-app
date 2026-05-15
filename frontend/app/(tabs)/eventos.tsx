@@ -33,22 +33,18 @@ export default function EventosScreen() {
   const fetchEventos = async () => {
     try {
       const data = await listEventos();
-      // Filtrar apenas orçamentos, pendentes e realizados e ordenar por data
-      const eventosFiltrados = data
-        .filter(
-          (e: Evento) =>
-            e.status === 'orçamento' || e.status === 'pendente' || e.status === 'realizado'
-        )
-        .sort((a: Evento, b: Evento) => 
-          new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
-        );
-      setEventos(eventosFiltrados);
+      const ordenados = [...data].sort((a: Evento, b: Evento) =>
+        new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()
+      );
+      setEventos(ordenados);
     } catch {
       Alert.alert('Erro', 'Não foi possível carregar os eventos');
     } finally {
       setLoading(false);
     }
   };
+
+  const contarStatus = (status: string) => eventos.filter((e) => e.status === status).length;
 
   useFocusEffect(
     useCallback(() => {
@@ -96,54 +92,33 @@ export default function EventosScreen() {
 
       {/* Filtro Rápido */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filtroStatus === 'orçamento' && styles.filterButtonActive,
-          ]}
-          onPress={() => setFiltroStatus('orçamento')}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              filtroStatus === 'orçamento' && styles.filterTextActive,
-            ]}
-          >
-            Orçamento
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filtroStatus === 'pendente' && styles.filterButtonActive,
-          ]}
-          onPress={() => setFiltroStatus('pendente')}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              filtroStatus === 'pendente' && styles.filterTextActive,
-            ]}
-          >
-            Pendente
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filtroStatus === 'realizado' && styles.filterButtonActive,
-          ]}
-          onPress={() => setFiltroStatus('realizado')}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              filtroStatus === 'realizado' && styles.filterTextActive,
-            ]}
-          >
-            Realizados
-          </Text>
-        </TouchableOpacity>
+        {[
+          { label: 'Orçamento', value: 'orçamento' },
+          { label: 'Pendente', value: 'pendente' },
+          { label: 'Realizado', value: 'realizado' },
+          { label: 'Cancelado', value: 'cancelado' },
+        ].map((tab) => {
+          const count = contarStatus(tab.value);
+          const active = filtroStatus === tab.value;
+          return (
+            <TouchableOpacity
+              key={tab.value}
+              style={[styles.filterButton, active && styles.filterButtonActive]}
+              onPress={() => setFiltroStatus(tab.value)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {tab.label}
+              </Text>
+              {count > 0 && (
+                <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
+                  <Text style={[styles.filterBadgeText, active && styles.filterBadgeTextActive]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (
@@ -238,16 +213,16 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 6,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
@@ -256,11 +231,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFB6C1',
   },
   filterText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
     color: '#666',
   },
   filterTextActive: {
+    color: '#FFF',
+  },
+  filterBadge: {
+    marginTop: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  filterBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  filterBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666',
+  },
+  filterBadgeTextActive: {
     color: '#FFF',
   },
   loadingContainer: {

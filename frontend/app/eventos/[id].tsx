@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,6 +121,39 @@ export default function DetalhesEventoScreen() {
     setStatusModalVisible(true);
   };
 
+  const formatarEventoTexto = (e: Evento) => {
+    const itensTexto = e.itens
+      .map((item) => `  • ${item.nomeProduto} (${item.quantidade}x) - ${formatMoeda(item.valorTotal)}`)
+      .join('\n');
+    const outrosTexto = e.outrosValores.length > 0
+      ? e.outrosValores.map((v) => `  • ${v.descricao}: ${formatMoeda(v.valor)}`).join('\n') + '\n'
+      : '';
+    return (
+      `*D&R Decorações - Orçamento*\n\n` +
+      `*Cliente:* ${e.cliente}\n` +
+      `*Telefone:* ${formatTelefone(e.telefone)}\n` +
+      `*Local:* ${e.local}\n` +
+      `*Início:* ${formatData(e.dataHoraInicio)}\n` +
+      `*Término:* ${formatData(e.dataHoraFim)}\n\n` +
+      `*Produtos:*\n${itensTexto}\n\n` +
+      `*Valores:*\n` +
+      `  Produtos: ${formatMoeda(e.totalProdutos)}\n` +
+      `  Frete: ${formatMoeda(e.valorFrete)}\n` +
+      `  Mão de obra: ${formatMoeda(e.valorOrganizacao)}\n` +
+      outrosTexto +
+      `\n*Total: ${formatMoeda(e.totalGeral)}*` +
+      (e.observacoes ? `\n\n*Obs:* ${e.observacoes}` : '')
+    );
+  };
+
+  const compartilharWhatsApp = () => {
+    if (!evento) return;
+    const texto = formatarEventoTexto(evento);
+    Linking.openURL(`whatsapp://send?text=${encodeURIComponent(texto)}`).catch(() => {
+      Alert.alert('Erro', 'WhatsApp não encontrado no dispositivo');
+    });
+  };
+
 
   if (loading) {
     return (
@@ -142,12 +176,17 @@ export default function DetalhesEventoScreen() {
           <Ionicons name="arrow-back" size={24} color="#FFB6C1" />
         </TouchableOpacity>
         <Text style={styles.title}>Detalhes do Evento</Text>
-        <TouchableOpacity 
-          onPress={() => router.push(`/eventos/editar/${id}`)} 
-          style={styles.editButton}
-        >
-          <Ionicons name="create" size={24} color="#FFB6C1" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={compartilharWhatsApp} style={styles.actionButton}>
+            <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push(`/eventos/editar/${id}`)}
+            style={styles.actionButton}
+          >
+            <Ionicons name="create" size={22} color="#FFB6C1" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -351,6 +390,17 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'flex-end',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editButton: {
     width: 40,

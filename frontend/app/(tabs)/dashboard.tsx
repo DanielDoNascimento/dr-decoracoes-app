@@ -140,6 +140,21 @@ export default function DashboardScreen() {
     });
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia!';
+    if (hour < 18) return 'Boa tarde!';
+    return 'Boa noite!';
+  };
+
+  const formatCurrentDate = () => {
+    return new Date().toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+    });
+  };
+
   const formatMoeda = (valor: number) => {
     return valor.toLocaleString('pt-BR', {
       style: 'currency',
@@ -166,8 +181,11 @@ export default function DashboardScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>D&R Decorações</Text>
-          <Text style={styles.subtitle}>Painel de Controle</Text>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.title}>D&R Decorações</Text>
+            <Text style={styles.subtitle}>{formatCurrentDate()}</Text>
+          </View>
         </View>
 
         {error ? (
@@ -295,15 +313,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
+  greeting: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 4,
+    textTransform: 'capitalize',
+  },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#FFB6C1',
+    color: '#D05078',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 13,
+    color: '#AAA',
+    textTransform: 'capitalize',
   },
   statsCard: {
     flexDirection: 'row',
