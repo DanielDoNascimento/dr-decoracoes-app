@@ -2,11 +2,13 @@ import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import * as Updates from 'expo-updates';
 import { pingServer } from '../services/api';
 
 export default function RootLayout() {
   const [serverReady, setServerReady] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -16,7 +18,24 @@ export default function RootLayout() {
       if (!cancelled) setElapsed(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
 
-    const tryPing = async () => {
+    const init = async () => {
+      // 1. Verificar atualização OTA (só em builds de produção)
+      if (!__DEV__) {
+        try {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+            return;
+          }
+        } catch {
+          // falha silenciosa — app continua normalmente
+        }
+      }
+
+      if (!cancelled) setChecking(false);
+
+      // 2. Aguardar servidor acordar
       while (!cancelled) {
         const ok = await pingServer();
         if (ok) {
@@ -27,7 +46,7 @@ export default function RootLayout() {
       }
     };
 
-    tryPing();
+    init();
 
     return () => {
       cancelled = true;
@@ -43,9 +62,13 @@ export default function RootLayout() {
           <Text style={styles.brand}>Decorações</Text>
           <ActivityIndicator size="large" color="#FFB6C1" style={styles.spinner} />
           <Text style={styles.message}>
-            {elapsed >= 5 ? 'Servidor iniciando...' : 'Carregando...'}
+            {checking
+              ? 'Verificando atualizações...'
+              : elapsed >= 5
+              ? 'Servidor iniciando...'
+              : 'Carregando...'}
           </Text>
-          {elapsed >= 5 && (
+          {!checking && elapsed >= 5 && (
             <Text style={styles.hint}>Isso é normal no primeiro acesso do dia</Text>
           )}
         </View>
