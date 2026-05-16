@@ -39,6 +39,7 @@ interface Evento {
   despesasTotais: number;
   status: string;
   statusPagamento: string;
+  formaPagamento: string;
   observacoes: string;
   itens: ItemEvento[];
   totalProdutos: number;
@@ -354,6 +355,27 @@ export default function DetalhesEventoScreen() {
               <Text style={styles.pagamentoTitle}>Pagamento</Text>
               {atualizandoPagamento && <ActivityIndicator size="small" color="#FFB6C1" style={{ marginLeft: 8 }} />}
             </View>
+            {evento.formaPagamento ? (
+              <View style={styles.formaPagBadgeRow}>
+                {{
+                  pix: { label: 'Pix', icon: 'phone-portrait-outline' as const },
+                  dinheiro: { label: 'Dinheiro', icon: 'cash-outline' as const },
+                  cartao: { label: 'Cartão', icon: 'card-outline' as const },
+                  transferencia: { label: 'Transferência', icon: 'swap-horizontal-outline' as const },
+                }[evento.formaPagamento] ? (
+                  <View style={styles.formaPagBadge}>
+                    <Ionicons
+                      name={({ pix: 'phone-portrait-outline', dinheiro: 'cash-outline', cartao: 'card-outline', transferencia: 'swap-horizontal-outline' } as any)[evento.formaPagamento]}
+                      size={14}
+                      color="#FFB6C1"
+                    />
+                    <Text style={styles.formaPagBadgeText}>
+                      {{ pix: 'Pix', dinheiro: 'Dinheiro', cartao: 'Cartão', transferencia: 'Transferência' }[evento.formaPagamento]}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             <View style={styles.pagamentoButtons}>
               {([
                 { label: 'Pendente', value: 'pendente', cor: '#FFF3CD', corAtivo: '#F0AD00' },
@@ -960,6 +982,26 @@ const styles = StyleSheet.create({
   },
   pagamentoBtnTextAtivo: {
     color: '#FFF',
+  },
+  formaPagBadgeRow: {
+    marginBottom: 10,
+  },
+  formaPagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF0F4',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD6E0',
+  },
+  formaPagBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#D05078',
   },
   sectionTitleRow: {
     flexDirection: 'row',

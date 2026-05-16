@@ -133,6 +133,7 @@ class Produto(BaseModel):
     valorUnitario: float
     quantidadeEstoque: int
     observacoes: Optional[str] = ""
+    foto: Optional[str] = ""
 
 class ProdutoResponse(Produto):
     id: str
@@ -156,6 +157,7 @@ class Evento(BaseModel):
     outrosValores: List[Dict[str, Any]] = Field(default_factory=list)
     status: str = "orçamento"  # orçamento, pendente, realizado, cancelado
     observacoes: Optional[str] = ""
+    formaPagamento: Optional[str] = ""
     itens: List[ItemEvento] = Field(default_factory=list)
     totalProdutos: float = 0.0
     totalGeral: float = 0.0
@@ -184,7 +186,8 @@ def produto_helper(produto) -> dict:
         "categoria": produto["categoria"],
         "valorUnitario": produto["valorUnitario"],
         "quantidadeEstoque": produto["quantidadeEstoque"],
-        "observacoes": produto.get("observacoes", "")
+        "observacoes": produto.get("observacoes", ""),
+        "foto": produto.get("foto", "")
     }
 
 def evento_helper(evento) -> dict:
@@ -215,6 +218,7 @@ def evento_helper(evento) -> dict:
         "lucroEvento": lucro_evento,
         "receitaTotal": total_geral,
         "statusPagamento": evento.get("statusPagamento", "pendente"),
+        "formaPagamento": evento.get("formaPagamento", ""),
     }
 
 def verificar_disponibilidade_produto(produto_id: str, quantidade: int, data_inicio: str, data_fim: str, evento_id_excluir: str = None) -> bool:
@@ -257,6 +261,12 @@ def verificar_disponibilidade_produto(produto_id: str, quantidade: int, data_ini
     # Verificar se há estoque disponível
     estoque_disponivel = estoque_total - quantidade_reservada
     return estoque_disponivel >= quantidade
+
+# ============= PING =============
+
+@app.get("/api/ping")
+async def ping():
+    return {"pong": True, "db": _db_disponivel()}
 
 # ============= PRODUTOS ROUTES =============
 

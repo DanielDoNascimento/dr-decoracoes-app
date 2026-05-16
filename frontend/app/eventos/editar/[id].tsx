@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,16 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   Modal,
   FlatList,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { deleteEvento, getDisponibilidadeProdutos, getEventoById, updateEvento } from '../../../services/api';
+import { showError } from '../../../services/alert';
 import { DatePickerField } from '../../../components/DatePickerField';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -45,10 +47,14 @@ type OutroValor = {
 
 export default function EditarEventoScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isDirtyRef = useRef(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const pendingActionRef = useRef<any>(null);
 
   // Dados do cliente
   const [cliente, setCliente] = useState('');
@@ -58,6 +64,7 @@ export default function EditarEventoScreen() {
   const [valorOrganizacao, setValorOrganizacao] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [status, setStatus] = useState('orçamento');
+  const [formaPagamento, setFormaPagamento] = useState('');
   const [outrosValores, setOutrosValores] = useState<OutroValor[]>([]);
 
   // Datas e horários
@@ -83,13 +90,13 @@ export default function EditarEventoScreen() {
   };
 
   const handleValorFreteChange = (text: string) => {
-    const formatted = formatarMoeda(text);
-    setValorFrete(formatted);
+    markDirty();
+    setValorFrete(formatarMoeda(text));
   };
 
   const handleValorOrganizacaoChange = (text: string) => {
-    const formatted = formatarMoeda(text);
-    setValorOrganizacao(formatted);
+    markDirty();
+    setValorOrganizacao(formatarMoeda(text));
   };
 
   const handleOutroValorChange = (index: number, campo: 'descricao' | 'valor', value: string) => {
@@ -156,6 +163,7 @@ export default function EditarEventoScreen() {
       setValorOrganizacao(numeroParaMoeda(data.valorOrganizacao));
       setObservacoes(data.observacoes || '');
       setStatus(data.status);
+      setFormaPagamento(data.formaPagamento || '');
       setItens(data.itens || []);
       setOutrosValores(
         (data.outrosValores || []).map((item) => ({
@@ -172,7 +180,7 @@ export default function EditarEventoScreen() {
       setDataFim(fim);
       setHoraFim(fim);
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar o evento');
+      showError('Não foi possível carregar o evento');
       router.back();
     } finally {
       setLoading(false);
@@ -203,6 +211,26 @@ export default function EditarEventoScreen() {
     buscarDisponibilidade();
   }, [buscarDisponibilidade]);
 
+  const markDirty = () => { isDirtyRef.current = true; };
+
+  useEffect(() => {
+    const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
+      if (!isDirtyRef.current) return;
+      e.preventDefault();
+      pendingActionRef.current = e.data.action;
+      setShowExitModal(true);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isDirtyRef.current) { setShowExitModal(true); return true; }
+      return false;
+    });
+    return () => handler.remove();
+  }, []);
+
   const combinarDataHora = (data: Date, hora: Date) => {
     const resultado = new Date(data);
     resultado.setHours(hora.getHours());
@@ -215,13 +243,13 @@ export default function EditarEventoScreen() {
   const adicionarProduto = (produto: Produto) => {
     const jaAdicionado = itens.find((i) => i.produtoId === produto.id);
     if (jaAdicionado) {
-      Alert.alert('Aviso', 'Produto já adicionado ao evento');
+      showError('Produto já adicionado ao evento');
       return;
     }
 
     const estoqueDisponivel = produto.estoqueDisponivel ?? produto.quantidadeEstoque;
     if (estoqueDisponivel <= 0) {
-      Alert.alert('Erro', 'Produto sem disponibilidade para o período selecionado');
+      showError('Produto sem disponibilidade para o período selecionado');
       return;
     }
 
@@ -246,7 +274,7 @@ export default function EditarEventoScreen() {
     const estoqueDisponivel = produto?.estoqueDisponivel ?? produto?.quantidadeEstoque ?? 0;
 
     if (produto && quantidade > estoqueDisponivel) {
-      Alert.alert('Erro', `Disponível apenas ${estoqueDisponivel} unidades`);
+      showError(`Disponível apenas ${estoqueDisponivel} unidades`);
       return;
     }
 
@@ -285,34 +313,34 @@ export default function EditarEventoScreen() {
 
   const validarCampos = () => {
     if (!cliente.trim()) {
-      Alert.alert('Erro', 'Nome do cliente é obrigatório');
+      showError('Nome do cliente é obrigatório');
       return false;
     }
     if (!telefone.trim()) {
-      Alert.alert('Erro', 'Telefone é obrigatório');
+      showError('Telefone é obrigatório');
       return false;
     }
     if (!local.trim()) {
-      Alert.alert('Erro', 'Local do evento é obrigatório');
+      showError('Local do evento é obrigatório');
       return false;
     }
     const freteNumero = moedaParaNumero(valorFrete);
     if (isNaN(freteNumero)) {
-      Alert.alert('Erro', 'Valor do frete é obrigatório');
+      showError('Valor do frete é obrigatório');
       return false;
     }
     if (itens.length === 0) {
-      Alert.alert('Erro', 'Adicione pelo menos um produto ao evento');
+      showError('Adicione pelo menos um produto ao evento');
       return false;
     }
     if (itens.some((item) => item.quantidade <= 0)) {
-      Alert.alert('Erro', 'Todos os produtos devem ter quantidade maior que 0');
+      showError('Todos os produtos devem ter quantidade maior que 0');
       return false;
     }
     const inicio = combinarDataHora(dataInicio, horaInicio);
     const fim = combinarDataHora(dataFim, horaFim);
     if (fim <= inicio) {
-      Alert.alert('Erro', 'A data e hora de término devem ser maiores que o início');
+      showError('A data e hora de término devem ser maiores que o início');
       return false;
     }
     return true;
@@ -341,17 +369,16 @@ export default function EditarEventoScreen() {
           }))
           .filter((item) => item.descricao || item.valor > 0),
         observacoes: observacoes.trim(),
+        formaPagamento,
         itens,
         status,
       };
 
+      isDirtyRef.current = false;
       await updateEvento(String(id), evento);
-
-      Alert.alert('Sucesso', 'Evento atualizado com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao salvar evento');
+      showError(error instanceof Error ? error.message : 'Erro ao salvar evento');
     } finally {
       setSaving(false);
     }
@@ -365,12 +392,9 @@ export default function EditarEventoScreen() {
     setSaving(true);
     try {
       await deleteEvento(String(id));
-
-      Alert.alert('Sucesso', 'Evento excluído com sucesso!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao excluir evento');
+      showError(error instanceof Error ? error.message : 'Erro ao excluir evento');
     } finally {
       setSaving(false);
     }
@@ -406,7 +430,10 @@ export default function EditarEventoScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => { if (isDirtyRef.current) setShowExitModal(true); else router.back(); }}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#FFB6C1" />
         </TouchableOpacity>
         <Text style={styles.title}>Editar Evento</Text>
@@ -428,7 +455,7 @@ export default function EditarEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={cliente}
-                onChangeText={setCliente}
+                onChangeText={(t) => { markDirty(); setCliente(t); }}
                 placeholder="Nome completo"
               />
             </View>
@@ -438,7 +465,7 @@ export default function EditarEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={telefone}
-                onChangeText={(text) => setTelefone(formatTelefone(text))}
+                onChangeText={(text) => { markDirty(); setTelefone(formatTelefone(text)); }}
                 placeholder="(00) 00000-0000"
                 keyboardType="phone-pad"
               />
@@ -449,24 +476,27 @@ export default function EditarEventoScreen() {
             <View style={styles.dateRow}>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Data Início *</Text>
-                <DatePickerField mode="date" value={dataInicio} onChange={setDataInicio} />
+                <DatePickerField mode="date" value={dataInicio} onChange={(d) => { markDirty(); setDataInicio(d); }} />
               </View>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Hora Início *</Text>
-                <DatePickerField mode="time" value={horaInicio} onChange={setHoraInicio} />
+                <DatePickerField mode="time" value={horaInicio} onChange={(d) => { markDirty(); setHoraInicio(d); }} />
               </View>
             </View>
 
             <View style={styles.dateRow}>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Data Fim *</Text>
-                <DatePickerField mode="date" value={dataFim} onChange={setDataFim} />
+                <DatePickerField mode="date" value={dataFim} onChange={(d) => { markDirty(); setDataFim(d); }} />
               </View>
               <View style={styles.dateGroup}>
                 <Text style={styles.label}>Hora Fim *</Text>
-                <DatePickerField mode="time" value={horaFim} onChange={setHoraFim} />
+                <DatePickerField mode="time" value={horaFim} onChange={(d) => { markDirty(); setHoraFim(d); }} />
               </View>
             </View>
+            {combinarDataHora(dataFim, horaFim) <= combinarDataHora(dataInicio, horaInicio) && (
+              <Text style={styles.dateWarning}>⚠ Término deve ser depois do início</Text>
+            )}
 
             <Text style={styles.sectionTitle}>Local e Valores</Text>
 
@@ -475,7 +505,7 @@ export default function EditarEventoScreen() {
               <TextInput
                 style={styles.input}
                 value={local}
-                onChangeText={setLocal}
+                onChangeText={(t) => { markDirty(); setLocal(t); }}
                 placeholder="Endereço ou descrição do local"
               />
             </View>
@@ -500,6 +530,31 @@ export default function EditarEventoScreen() {
                 placeholder="R$ 0,00"
                 keyboardType="numeric"
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Forma de Pagamento</Text>
+              <View style={styles.formaPagRow}>
+                {[
+                  { value: 'pix', label: 'Pix' },
+                  { value: 'dinheiro', label: 'Dinheiro' },
+                  { value: 'cartao', label: 'Cartão' },
+                  { value: 'transferencia', label: 'Transf.' },
+                ].map((op) => {
+                  const ativo = formaPagamento === op.value;
+                  return (
+                    <TouchableOpacity
+                      key={op.value}
+                      style={[styles.formaPagBtn, ativo && styles.formaPagBtnAtivo]}
+                      onPress={() => { markDirty(); setFormaPagamento(ativo ? '' : op.value); }}
+                    >
+                      <Text style={[styles.formaPagBtnText, ativo && styles.formaPagBtnTextAtivo]}>
+                        {op.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -639,6 +694,34 @@ export default function EditarEventoScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+
+      <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
+        <TouchableOpacity style={styles.exitModalOverlay} activeOpacity={1} onPress={() => setShowExitModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.exitModalBox}>
+            <Text style={styles.exitModalTitle}>Descartar alterações?</Text>
+            <Text style={styles.exitModalMsg}>As alterações feitas serão perdidas.</Text>
+            <View style={styles.exitModalBtns}>
+              <TouchableOpacity style={styles.exitModalKeep} onPress={() => setShowExitModal(false)}>
+                <Text style={styles.exitModalKeepText}>Continuar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.exitModalDiscard}
+                onPress={() => {
+                  setShowExitModal(false);
+                  isDirtyRef.current = false;
+                  if (pendingActionRef.current) {
+                    (navigation as any).dispatch(pendingActionRef.current);
+                  } else {
+                    router.back();
+                  }
+                }}
+              >
+                <Text style={styles.exitModalDiscardText}>Descartar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
         <TouchableOpacity
@@ -1057,6 +1140,87 @@ const styles = StyleSheet.create({
   emptyModalText: {
     fontSize: 16,
     color: '#999',
+  },
+  dateWarning: {
+    fontSize: 13,
+    color: '#E07000',
+    marginTop: -8,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  formaPagRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  formaPagBtn: {
+    flex: 1,
+    minWidth: 70,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+  },
+  formaPagBtnAtivo: {
+    backgroundColor: '#FFB6C1',
+  },
+  formaPagBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  formaPagBtnTextAtivo: {
+    color: '#FFF',
+  },
+  exitModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  exitModalBox: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 24,
+  },
+  exitModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+  },
+  exitModalMsg: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+  },
+  exitModalBtns: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  exitModalKeep: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 9,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+  },
+  exitModalKeepText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  exitModalDiscard: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 9,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+  },
+  exitModalDiscardText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
   loadingContainer: {
     flex: 1,

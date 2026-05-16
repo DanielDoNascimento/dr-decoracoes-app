@@ -1,32 +1,53 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initBackupSync } from '../services/backup';
-import { DatabaseProvider, useDatabase } from '../services/DatabaseProvider';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { pingServer } from '../services/api';
 
-const RootNavigator = () => {
-  const [ready, setReady] = useState(false);
-  const { databaseReady } = useDatabase();
+export default function RootLayout() {
+  const [serverReady, setServerReady] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    let mounted = true;
-    let stopBackup = () => {};
-    if (databaseReady) {
-      if (mounted) setReady(true);
-      stopBackup = initBackupSync();
-    }
-    return () => {
-      mounted = false;
-      stopBackup();
-    };
-  }, [databaseReady]);
+    let cancelled = false;
+    const startTime = Date.now();
 
-  if (!ready || !databaseReady) {
+    const timer = setInterval(() => {
+      if (!cancelled) setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    const tryPing = async () => {
+      while (!cancelled) {
+        const ok = await pingServer();
+        if (ok) {
+          if (!cancelled) setServerReady(true);
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    };
+
+    tryPing();
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  if (!serverReady) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color="#FFB6C1" />
+        <View style={styles.container}>
+          <Text style={styles.logo}>D&R</Text>
+          <Text style={styles.brand}>Decorações</Text>
+          <ActivityIndicator size="large" color="#FFB6C1" style={styles.spinner} />
+          <Text style={styles.message}>
+            {elapsed >= 5 ? 'Servidor iniciando...' : 'Carregando...'}
+          </Text>
+          {elapsed >= 5 && (
+            <Text style={styles.hint}>Isso é normal no primeiro acesso do dia</Text>
+          )}
         </View>
       </SafeAreaProvider>
     );
@@ -40,12 +61,41 @@ const RootNavigator = () => {
       </Stack>
     </SafeAreaProvider>
   );
-};
-
-export default function RootLayout() {
-  return (
-    <DatabaseProvider>
-      <RootNavigator />
-    </DatabaseProvider>
-  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  logo: {
+    fontSize: 72,
+    fontWeight: 'bold',
+    color: '#FFB6C1',
+    letterSpacing: 6,
+  },
+  brand: {
+    fontSize: 20,
+    color: '#AAAAAA',
+    marginTop: 4,
+    letterSpacing: 3,
+  },
+  spinner: {
+    marginTop: 56,
+  },
+  message: {
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  hint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#BBBBBB',
+    textAlign: 'center',
+  },
+});

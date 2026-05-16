@@ -8,12 +8,15 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { deleteProduto, getProdutoById, updateProduto } from '../../services/api';
+import { showError } from '../../services/alert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditarProdutoScreen() {
@@ -22,12 +25,36 @@ export default function EditarProdutoScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [codigo, setCodigo] = useState('');
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
   const [valorUnitario, setValorUnitario] = useState('');
   const [quantidadeEstoque, setQuantidadeEstoque] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [foto, setFoto] = useState('');
+  const [showFotoModal, setShowFotoModal] = useState(false);
+
+  const pickFoto = async (fromCamera: boolean) => {
+    setShowFotoModal(false);
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') { showError('Permissão de câmera necessária'); return; }
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') { showError('Permissão de galeria necessária'); return; }
+        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true, mediaTypes: 'images' });
+      }
+      if (!result.canceled && result.assets[0]?.base64) {
+        setFoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch {
+      showError('Não foi possível selecionar a imagem');
+    }
+  };
 
   const formatCurrency = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -57,8 +84,9 @@ export default function EditarProdutoScreen() {
       setValorUnitario(formatCurrencyFromNumber(data.valorUnitario));
       setQuantidadeEstoque(data.quantidadeEstoque.toString());
       setObservacoes(data.observacoes || '');
+      setFoto(data.foto || '');
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar o produto');
+      showError('Não foi possível carregar o produto');
       router.back();
     } finally {
       setLoading(false);
@@ -71,27 +99,27 @@ export default function EditarProdutoScreen() {
 
   const validarCampos = () => {
     if (!codigo.trim()) {
-      Alert.alert('Erro', 'Código é obrigatório');
+      showError('Código é obrigatório');
       return false;
     }
     if (!nome.trim()) {
-      Alert.alert('Erro', 'Nome é obrigatório');
+      showError('Nome é obrigatório');
       return false;
     }
     if (!categoria.trim()) {
-      Alert.alert('Erro', 'Categoria é obrigatória');
+      showError('Categoria é obrigatória');
       return false;
     }
     if (!valorUnitario || isNaN(parseCurrency(valorUnitario))) {
-      Alert.alert('Erro', 'Valor unitário inválido');
+      showError('Valor unitário inválido');
       return false;
     }
     if (!quantidadeEstoque || isNaN(parseInt(quantidadeEstoque))) {
-      Alert.alert('Erro', 'Quantidade de estoque inválida');
+      showError('Quantidade de estoque inválida');
       return false;
     }
     if (parseInt(quantidadeEstoque) < 0) {
-      Alert.alert('Erro', 'Estoque não pode ser negativo');
+      showError('Estoque não pode ser negativo');
       return false;
     }
     return true;
@@ -108,45 +136,28 @@ export default function EditarProdutoScreen() {
         valorUnitario: parseCurrency(valorUnitario),
         quantidadeEstoque: parseInt(quantidadeEstoque),
         observacoes: observacoes.trim(),
+        foto,
       });
 
-      // Toast de sucesso
-      setTimeout(() => {
-        Alert.alert('✓ Sucesso', 'Produto atualizado com sucesso', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      }, 100);
+      router.back();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao salvar produto');
+      showError(error instanceof Error ? error.message : 'Erro ao salvar produto');
     } finally {
       setSaving(false);
     }
   };
 
   const confirmarExclusao = () => {
-    Alert.alert(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir este produto?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: excluirProduto },
-      ]
-    );
+    setShowDeleteModal(true);
   };
 
   const excluirProduto = async () => {
     setSaving(true);
     try {
       await deleteProduto(String(id));
-
-      // Toast de sucesso
-      setTimeout(() => {
-        Alert.alert('✓ Sucesso', 'Produto excluído', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      }, 100);
+      router.back();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao excluir produto');
+      showError(error instanceof Error ? error.message : 'Erro ao excluir produto');
     } finally {
       setSaving(false);
     }
@@ -188,6 +199,25 @@ export default function EditarProdutoScreen() {
               <View style={styles.codigoDisplay}>
                 <Text style={styles.codigoText}>{codigo}</Text>
               </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Foto do Produto (opcional)</Text>
+              <TouchableOpacity style={styles.fotoContainer} onPress={() => setShowFotoModal(true)}>
+                {foto ? (
+                  <>
+                    <Image source={{ uri: foto }} style={styles.fotoPreview} contentFit="cover" />
+                    <TouchableOpacity style={styles.fotoRemove} onPress={(e) => { e.stopPropagation(); setFoto(''); }}>
+                      <Ionicons name="close-circle" size={22} color="#FF6B6B" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.fotoPlaceholder}>
+                    <Ionicons name="camera-outline" size={32} color="#CCC" />
+                    <Text style={styles.fotoPlaceholderText}>Adicionar foto</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
@@ -262,6 +292,49 @@ export default function EditarProdutoScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={showFotoModal} transparent animationType="fade" onRequestClose={() => setShowFotoModal(false)}>
+        <TouchableOpacity style={styles.fotoModalOverlay} activeOpacity={1} onPress={() => setShowFotoModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.fotoModalBox}>
+            <Text style={styles.fotoModalTitle}>Foto do Produto</Text>
+            <TouchableOpacity style={styles.fotoModalBtn} onPress={() => pickFoto(true)}>
+              <Ionicons name="camera-outline" size={22} color="#FFB6C1" />
+              <Text style={styles.fotoModalBtnText}>Tirar Foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.fotoModalBtn} onPress={() => pickFoto(false)}>
+              <Ionicons name="images-outline" size={22} color="#FFB6C1" />
+              <Text style={styles.fotoModalBtnText}>Escolher da Galeria</Text>
+            </TouchableOpacity>
+            {foto ? (
+              <TouchableOpacity style={styles.fotoModalBtn} onPress={() => { setFoto(''); setShowFotoModal(false); }}>
+                <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
+                <Text style={[styles.fotoModalBtnText, { color: '#FF6B6B' }]}>Remover Foto</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity style={[styles.fotoModalBtn, { borderBottomWidth: 0 }]} onPress={() => setShowFotoModal(false)}>
+              <Text style={[styles.fotoModalBtnText, { color: '#999' }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Ionicons name="trash-outline" size={40} color="#FF6B6B" style={{ marginBottom: 12 }} />
+            <Text style={styles.modalTitle}>Excluir Produto</Text>
+            <Text style={styles.modalMessage}>Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalConfirm} onPress={() => { setShowDeleteModal(false); excluirProduto(); }}>
+                <Text style={styles.modalConfirmText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -384,5 +457,126 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalConfirm: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#FF6B6B',
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 15,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  fotoContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
+  },
+  fotoPreview: {
+    width: 120,
+    height: 120,
+  },
+  fotoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FFF',
+    borderRadius: 11,
+  },
+  fotoPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fotoPlaceholderText: {
+    fontSize: 12,
+    color: '#BBB',
+  },
+  fotoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  fotoModalBox: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  fotoModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  fotoModalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  fotoModalBtnText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
   },
 });

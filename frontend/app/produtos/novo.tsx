@@ -8,11 +8,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { showError } from '../../services/alert';
 import { createProduto } from '../../services/api';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,6 +28,29 @@ export default function NovoProdutoScreen() {
   const [valorUnitario, setValorUnitario] = useState('');
   const [quantidadeEstoque, setQuantidadeEstoque] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [foto, setFoto] = useState('');
+  const [showFotoModal, setShowFotoModal] = useState(false);
+
+  const pickFoto = async (fromCamera: boolean) => {
+    setShowFotoModal(false);
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') { showError('Permissão de câmera necessária'); return; }
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') { showError('Permissão de galeria necessária'); return; }
+        result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.4, base64: true, mediaTypes: 'images' });
+      }
+      if (!result.canceled && result.assets[0]?.base64) {
+        setFoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch {
+      showError('Não foi possível selecionar a imagem');
+    }
+  };
 
   // Validações
   const [valorError, setValorError] = useState('');
@@ -72,23 +98,23 @@ export default function NovoProdutoScreen() {
 
   const validarCampos = () => {
     if (!nome.trim()) {
-      Alert.alert('Erro', 'Nome é obrigatório');
+      showError('Nome é obrigatório');
       return false;
     }
     if (!categoria.trim()) {
-      Alert.alert('Erro', 'Categoria é obrigatória');
+      showError('Categoria é obrigatória');
       return false;
     }
     if (!valorUnitario || isNaN(parseCurrency(valorUnitario))) {
-      Alert.alert('Erro', 'Valor unitário inválido');
+      showError('Valor unitário inválido');
       return false;
     }
     if (!quantidadeEstoque || isNaN(parseInt(quantidadeEstoque))) {
-      Alert.alert('Erro', 'Quantidade de estoque inválida');
+      showError('Quantidade de estoque inválida');
       return false;
     }
     if (parseInt(quantidadeEstoque) < 0) {
-      Alert.alert('Erro', 'Estoque não pode ser negativo');
+      showError('Estoque não pode ser negativo');
       return false;
     }
     return true;
@@ -105,16 +131,12 @@ export default function NovoProdutoScreen() {
         valorUnitario: parseCurrency(valorUnitario),
         quantidadeEstoque: parseInt(quantidadeEstoque),
         observacoes: observacoes.trim(),
+        foto,
       });
 
-      // Toast de sucesso - usar Alert simples
-      setTimeout(() => {
-        Alert.alert('✓ Sucesso', 'Produto criado com sucesso', [
-          { text: 'OK', onPress: () => router.back() },
-        ]);
-      }, 100);
+      router.back();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao salvar produto');
+      showError(error instanceof Error ? error.message : 'Erro ao salvar produto');
     } finally {
       setLoading(false);
     }
@@ -139,6 +161,25 @@ export default function NovoProdutoScreen() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
           <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Foto do Produto (opcional)</Text>
+              <TouchableOpacity style={styles.fotoContainer} onPress={() => setShowFotoModal(true)}>
+                {foto ? (
+                  <>
+                    <Image source={{ uri: foto }} style={styles.fotoPreview} contentFit="cover" />
+                    <TouchableOpacity style={styles.fotoRemove} onPress={(e) => { e.stopPropagation(); setFoto(''); }}>
+                      <Ionicons name="close-circle" size={22} color="#FF6B6B" />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.fotoPlaceholder}>
+                    <Ionicons name="camera-outline" size={32} color="#CCC" />
+                    <Text style={styles.fotoPlaceholderText}>Adicionar foto</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nome *</Text>
               <TextInput
@@ -213,6 +254,24 @@ export default function NovoProdutoScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <Modal visible={showFotoModal} transparent animationType="fade" onRequestClose={() => setShowFotoModal(false)}>
+        <TouchableOpacity style={styles.fotoModalOverlay} activeOpacity={1} onPress={() => setShowFotoModal(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.fotoModalBox}>
+            <Text style={styles.fotoModalTitle}>Adicionar Foto</Text>
+            <TouchableOpacity style={styles.fotoModalBtn} onPress={() => pickFoto(true)}>
+              <Ionicons name="camera-outline" size={22} color="#FFB6C1" />
+              <Text style={styles.fotoModalBtnText}>Tirar Foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.fotoModalBtn} onPress={() => pickFoto(false)}>
+              <Ionicons name="images-outline" size={22} color="#FFB6C1" />
+              <Text style={styles.fotoModalBtnText}>Escolher da Galeria</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.fotoModalBtn, { borderBottomWidth: 0 }]} onPress={() => setShowFotoModal(false)}>
+              <Text style={[styles.fotoModalBtnText, { color: '#999' }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -324,5 +383,68 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  fotoContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
+  },
+  fotoPreview: {
+    width: 120,
+    height: 120,
+  },
+  fotoRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FFF',
+    borderRadius: 11,
+  },
+  fotoPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fotoPlaceholderText: {
+    fontSize: 12,
+    color: '#BBB',
+  },
+  fotoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  fotoModalBox: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  fotoModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  fotoModalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  fotoModalBtnText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
   },
 });
