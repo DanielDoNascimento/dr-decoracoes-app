@@ -20,6 +20,7 @@ logger = logging.getLogger("dr_decoracoes")
 logging.basicConfig(level=logging.INFO)
 API_KEY = os.getenv("API_KEY", "").strip()
 STATUS_VALIDOS = {"orçamento", "pendente", "realizado", "cancelado"}
+STATUS_PAGAMENTO_VALIDOS = {"pendente", "parcial", "pago"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -170,6 +171,9 @@ class DisponibilidadeRequest(BaseModel):
 class StatusUpdateRequest(BaseModel):
     status: str
 
+class PagamentoUpdateRequest(BaseModel):
+    statusPagamento: str
+
 # ============= HELPER FUNCTIONS =============
 
 def produto_helper(produto) -> dict:
@@ -210,6 +214,7 @@ def evento_helper(evento) -> dict:
         "despesasTotais": despesas_totais,
         "lucroEvento": lucro_evento,
         "receitaTotal": total_geral,
+        "statusPagamento": evento.get("statusPagamento", "pendente"),
     }
 
 def verificar_disponibilidade_produto(produto_id: str, quantidade: int, data_inicio: str, data_fim: str, evento_id_excluir: str = None) -> bool:
@@ -496,6 +501,28 @@ async def atualizar_status_evento(evento_id: str, novo_status: StatusUpdateReque
         )
 
         evento["status"] = status_valor
+        return evento_helper(evento)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise _http_error(500, str(e))
+
+@app.put("/api/eventos/{evento_id}/pagamento")
+async def atualizar_pagamento_evento(evento_id: str, req: PagamentoUpdateRequest):
+    if not _db_disponivel():
+        raise _http_error(503, "Banco de dados indisponível")
+    try:
+        if req.statusPagamento not in STATUS_PAGAMENTO_VALIDOS:
+            raise _http_error(400, "Status de pagamento inválido")
+        evento_object_id = _parse_object_id(evento_id, "evento_id")
+        evento = eventos_collection.find_one({"_id": evento_object_id})
+        if not evento:
+            raise _http_error(404, "Evento não encontrado")
+        eventos_collection.update_one(
+            {"_id": evento_object_id},
+            {"$set": {"statusPagamento": req.statusPagamento}}
+        )
+        evento["statusPagamento"] = req.statusPagamento
         return evento_helper(evento)
     except HTTPException:
         raise
