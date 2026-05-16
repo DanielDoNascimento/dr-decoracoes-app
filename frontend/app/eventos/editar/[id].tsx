@@ -258,7 +258,11 @@ export default function EditarEventoScreen() {
 
   const alterarQuantidade = (index: number, delta: number) => {
     const quantidadeAtual = itens[index]?.quantidade ?? 0;
-    const novaQuantidade = Math.max(0, quantidadeAtual + delta);
+    const novaQuantidade = quantidadeAtual + delta;
+    if (novaQuantidade <= 0) {
+      removerProduto(index);
+      return;
+    }
     atualizarQuantidade(index, String(novaQuantidade));
   };
 
@@ -477,7 +481,7 @@ export default function EditarEventoScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Valor do Frete (R$) *</Text>
+              <Text style={styles.label}>Valor do Frete (R$)</Text>
               <TextInput
                 style={styles.input}
                 value={valorFrete}

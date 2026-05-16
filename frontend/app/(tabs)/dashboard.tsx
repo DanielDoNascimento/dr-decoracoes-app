@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 import { getLastSync, isBackupConfigured, syncBackup } from '../../services/backup';
-import { getDashboardData } from '../../services/api';
+import { getDashboardData, getFinanceMonthSummary } from '../../services/api';
 
 interface Evento {
   id: string;
@@ -36,6 +36,7 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [eventosEstaSemana, setEventosEstaSemana] = useState(0);
+  const [receitaMes, setReceitaMes] = useState<number | null>(null);
   const [backupConfigured, setBackupConfigured] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
@@ -58,6 +59,12 @@ export default function DashboardScreen() {
       });
 
       setEventosEstaSemana(eventosSemana.length);
+
+      const now = new Date();
+      try {
+        const fin = await getFinanceMonthSummary(now.getFullYear(), now.getMonth() + 1);
+        setReceitaMes(fin.entradas);
+      } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -243,6 +250,23 @@ export default function DashboardScreen() {
               <Ionicons name="chevron-forward" size={24} color="#CCC" />
             </TouchableOpacity>
 
+            {receitaMes !== null && (
+              <TouchableOpacity
+                style={[styles.statsCard, styles.statsCardGreen]}
+                onPress={() => router.push('/(tabs)/financeiro')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.statsIconContainer, styles.statsIconGreen]}>
+                  <Ionicons name="cash-outline" size={32} color="#4CAF50" />
+                </View>
+                <View style={styles.statsContent}>
+                  <Text style={styles.statsValue}>{formatMoeda(receitaMes)}</Text>
+                  <Text style={styles.statsLabel}>Receita em {new Date().toLocaleDateString('pt-BR', { month: 'long' })}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color="#CCC" />
+              </TouchableOpacity>
+            )}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Próximos Eventos</Text>
               {data?.proximosEventos && data.proximosEventos.length > 0 ? (
@@ -370,6 +394,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  statsCardGreen: {
+    marginTop: 0,
+  },
+  statsIconGreen: {
+    backgroundColor: '#E8F5E9',
   },
   section: {
     padding: 16,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ export default function EventosScreen() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>('orçamento');
+  const [busca, setBusca] = useState('');
 
   const fetchEventos = async () => {
     try {
@@ -76,7 +78,11 @@ export default function EventosScreen() {
     return dataEvento < agora;
   };
 
-  const eventosFiltrados = eventos.filter((e) => e.status === filtroStatus);
+  const eventosFiltrados = eventos.filter(
+    (e) =>
+      e.status === filtroStatus &&
+      (busca.trim() === '' || e.cliente.toLowerCase().includes(busca.trim().toLowerCase()))
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -119,6 +125,22 @@ export default function EventosScreen() {
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={18} color="#999" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por cliente..."
+          value={busca}
+          onChangeText={setBusca}
+          placeholderTextColor="#BBB"
+        />
+        {busca.length > 0 && (
+          <TouchableOpacity onPress={() => setBusca('')}>
+            <Ionicons name="close-circle" size={18} color="#BBB" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
@@ -257,6 +279,25 @@ const styles = StyleSheet.create({
   },
   filterBadgeTextActive: {
     color: '#FFF',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
   },
   loadingContainer: {
     flex: 1,

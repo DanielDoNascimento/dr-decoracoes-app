@@ -123,11 +123,14 @@ export default function NovoEventoScreen() {
 
   const limparTelefone = (input: string) => input.replace(/\D/g, '');
 
-  // Datas e horários
-  const [dataInicio, setDataInicio] = useState(new Date());
-  const [horaInicio, setHoraInicio] = useState(new Date());
-  const [dataFim, setDataFim] = useState(new Date());
-  const [horaFim, setHoraFim] = useState(new Date());
+  // Datas e horários — padrão: amanhã, 08h–18h
+  const amanha = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })();
+  const horaPadraInicio = (() => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; })();
+  const horaPadraFim = (() => { const d = new Date(); d.setHours(18, 0, 0, 0); return d; })();
+  const [dataInicio, setDataInicio] = useState(amanha);
+  const [horaInicio, setHoraInicio] = useState(horaPadraInicio);
+  const [dataFim, setDataFim] = useState(amanha);
+  const [horaFim, setHoraFim] = useState(horaPadraFim);
   // Produtos
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [itens, setItens] = useState<ItemEvento[]>([]);
@@ -208,7 +211,11 @@ export default function NovoEventoScreen() {
 
   const alterarQuantidade = (index: number, delta: number) => {
     const quantidadeAtual = itens[index]?.quantidade ?? 0;
-    const novaQuantidade = Math.max(0, quantidadeAtual + delta);
+    const novaQuantidade = quantidadeAtual + delta;
+    if (novaQuantidade <= 0) {
+      removerProduto(index);
+      return;
+    }
     atualizarQuantidade(index, String(novaQuantidade));
   };
 
@@ -396,7 +403,7 @@ export default function NovoEventoScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Valor do Frete (R$) *</Text>
+              <Text style={styles.label}>Valor do Frete (R$)</Text>
               <TextInput
                 style={styles.input}
                 value={valorFrete}

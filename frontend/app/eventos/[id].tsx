@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getEventoById, updateEventoStatus } from '../../services/api';
+import { createEvento, getEventoById, updateEventoStatus } from '../../services/api';
 
 interface ItemEvento {
   produtoId: string;
@@ -51,6 +51,7 @@ export default function DetalhesEventoScreen() {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [duplicando, setDuplicando] = useState(false);
 
   const carregarEvento = useCallback(async () => {
     try {
@@ -146,6 +147,33 @@ export default function DetalhesEventoScreen() {
     );
   };
 
+  const duplicarEvento = async () => {
+    if (!evento) return;
+    setDuplicando(true);
+    try {
+      const novoId = await createEvento({
+        cliente: evento.cliente,
+        telefone: evento.telefone,
+        dataHoraInicio: evento.dataHoraInicio,
+        dataHoraFim: evento.dataHoraFim,
+        local: evento.local,
+        valorFrete: evento.valorFrete,
+        valorOrganizacao: evento.valorOrganizacao,
+        outrosValores: evento.outrosValores,
+        observacoes: evento.observacoes,
+        itens: evento.itens,
+        status: 'orçamento',
+      });
+      Alert.alert('Evento duplicado!', 'Abrindo o novo evento para edição.', [
+        { text: 'OK', onPress: () => router.replace(`/eventos/editar/${novoId}`) },
+      ]);
+    } catch (err) {
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Não foi possível duplicar');
+    } finally {
+      setDuplicando(false);
+    }
+  };
+
   const compartilharWhatsApp = () => {
     if (!evento) return;
     const texto = formatarEventoTexto(evento);
@@ -179,6 +207,12 @@ export default function DetalhesEventoScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={compartilharWhatsApp} style={styles.actionButton}>
             <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={duplicarEvento} style={styles.actionButton} disabled={duplicando}>
+            {duplicando
+              ? <ActivityIndicator size="small" color="#FFB6C1" />
+              : <Ionicons name="copy-outline" size={22} color="#FFB6C1" />
+            }
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push(`/eventos/editar/${id}`)}
