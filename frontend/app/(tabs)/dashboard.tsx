@@ -11,8 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import NetInfo from '@react-native-community/netinfo';
-import { getLastSync, isBackupConfigured, syncBackup } from '../../services/backup';
 import { getDashboardData, getFinanceMonthSummary } from '../../services/api';
 
 interface Evento {
@@ -37,11 +35,6 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [eventosEstaSemana, setEventosEstaSemana] = useState(0);
   const [receitaMes, setReceitaMes] = useState<number | null>(null);
-  const [backupConfigured, setBackupConfigured] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [backupMessage, setBackupMessage] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(true);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -78,59 +71,6 @@ export default function DashboardScreen() {
       fetchDashboard();
     }, [fetchDashboard])
   );
-
-  useEffect(() => {
-    setBackupConfigured(isBackupConfigured());
-    getLastSync().then(setLastSync).catch(() => {});
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleManualSync = async () => {
-    if (!backupConfigured) {
-      setBackupMessage('Backup ainda não configurado');
-      return;
-    }
-    if (!isOnline) {
-      setBackupMessage('Sem internet no momento');
-      return;
-    }
-    setSyncing(true);
-    setBackupMessage(null);
-    try {
-      const result = await syncBackup('full');
-      const updated = await getLastSync();
-      setLastSync(updated);
-      if (result) {
-        const produtosEnviados = result.received?.Produtos ?? 0;
-        const eventosEnviados = result.received?.Eventos ?? 0;
-        const insertedTotal =
-          (result.inserted?.Produtos ?? 0) +
-          (result.inserted?.Eventos ?? 0) +
-          (result.inserted?.Evento_Produtos ?? 0);
-        const receivedTotal =
-          (result.received?.Produtos ?? 0) +
-          (result.received?.Eventos ?? 0) +
-          (result.received?.Evento_Produtos ?? 0);
-
-        if (receivedTotal > 0 && insertedTotal === 0) {
-          setBackupMessage('Backup em dia. Nenhum dado novo para sincronizar.');
-        } else {
-          setBackupMessage(
-            `Backup concluído: ${produtosEnviados} produtos, ${eventosEnviados} eventos enviados`
-          );
-        }
-      } else {
-        setBackupMessage('Backup sincronizado com sucesso');
-      }
-    } catch {
-      setBackupMessage('Não foi possível sincronizar. Seus dados continuam salvos no celular.');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -174,6 +114,8 @@ export default function DashboardScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFB6C1" />
+          <Text style={styles.loadingText}>Conectando ao servidor...</Text>
+          <Text style={styles.loadingSubText}>Pode levar até 30 segundos na primeira vez</Text>
         </View>
       </SafeAreaView>
     );
@@ -205,30 +147,6 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
-            {(backupConfigured || lastSync || backupMessage || syncing) && (
-              <View style={styles.backupContainer}>
-                <TouchableOpacity
-                  style={[styles.backupButton, (!backupConfigured || syncing) && styles.backupButtonDisabled]}
-                  onPress={handleManualSync}
-                  disabled={!backupConfigured || syncing}
-                >
-                  <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
-                  <Text style={styles.backupButtonText}>
-                    {syncing ? 'Sincronizando...' : 'Sincronizar Backup'}
-                  </Text>
-                </TouchableOpacity>
-                {!isOnline && (
-                  <Text style={styles.backupHint}>Sem internet no momento</Text>
-                )}
-                {lastSync && (
-                  <Text style={styles.backupHint}>Última sincronização: {new Date(lastSync).toLocaleString('pt-BR')}</Text>
-                )}
-                {backupMessage && (
-                  <Text style={styles.backupHint}>{backupMessage}</Text>
-                )}
-              </View>
-            )}
-
             {/* Card Clicável de Eventos Não Realizados */}
             <TouchableOpacity 
               style={styles.statsCard}
@@ -286,7 +204,7 @@ export default function DashboardScreen() {
                         </View>
                       </View>
                       <View style={styles.eventoRight}>
-                        <View style={[styles.statusChipSmall, styles[`status_${evento.status}`]]}>
+                        <View style={[styles.statusChipSmall, (styles as any)[`status_${evento.status}`]]}>
                           <Text style={styles.statusChipText}>{evento.status}</Text>
                         </View>
                         <Text style={styles.eventoValorCompact}>{formatMoeda(evento.totalGeral)}</Text>
@@ -330,6 +248,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 8,
+  },
+  loadingSubText: {
+    fontSize: 13,
+    color: '#AAA',
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   header: {
     padding: 24,
@@ -465,33 +395,6 @@ const styles = StyleSheet.create({
   },
   status_pendente: {
     backgroundColor: '#D1ECF1',
-  },
-  backupContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  backupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFB6C1',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
-  },
-  backupButtonDisabled: {
-    opacity: 0.6,
-  },
-  backupButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  backupHint: {
-    marginTop: 8,
-    color: '#999',
-    fontSize: 12,
-    textAlign: 'center',
   },
   status_realizado: {
     backgroundColor: '#D4EDDA',

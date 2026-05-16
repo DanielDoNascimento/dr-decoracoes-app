@@ -5,15 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Modal,
-  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { createEvento, getEventoById, updateEventoStatus } from '../../services/api';
+import { deleteEvento, getEventoById, updateEventoStatus, updateEventoPagamento } from '../../services/api';
+import { showError } from '../../services/alert';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface ItemEvento {
   produtoId: string;
@@ -36,6 +38,7 @@ interface Evento {
   outrosValores: { descricao: string; valor: number }[];
   despesasTotais: number;
   status: string;
+  statusPagamento: string;
   observacoes: string;
   itens: ItemEvento[];
   totalProdutos: number;
@@ -51,7 +54,10 @@ export default function DetalhesEventoScreen() {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
-  const [duplicando, setDuplicando] = useState(false);
+  const [atualizandoPagamento, setAtualizandoPagamento] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [cancelarConfirmVisible, setCancelarConfirmVisible] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   const carregarEvento = useCallback(async () => {
     try {
@@ -61,7 +67,7 @@ export default function DetalhesEventoScreen() {
       }
       setEvento(data);
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar o evento');
+      showError('Não foi possível carregar o evento');
       router.back();
     } finally {
       setLoading(false);
@@ -109,10 +115,9 @@ export default function DetalhesEventoScreen() {
     try {
       await updateEventoStatus(String(id), novoStatus);
 
-      Alert.alert('Sucesso', 'Status atualizado com sucesso!');
       carregarEvento();
     } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao atualizar status');
+      showError(error instanceof Error ? error.message : 'Erro ao atualizar status');
     } finally {
       setAtualizandoStatus(false);
     }
@@ -122,64 +127,161 @@ export default function DetalhesEventoScreen() {
     setStatusModalVisible(true);
   };
 
-  const formatarEventoTexto = (e: Evento) => {
-    const itensTexto = e.itens
-      .map((item) => `  • ${item.nomeProduto} (${item.quantidade}x) - ${formatMoeda(item.valorTotal)}`)
-      .join('\n');
-    const outrosTexto = e.outrosValores.length > 0
-      ? e.outrosValores.map((v) => `  • ${v.descricao}: ${formatMoeda(v.valor)}`).join('\n') + '\n'
-      : '';
-    return (
-      `*D&R Decorações - Orçamento*\n\n` +
-      `*Cliente:* ${e.cliente}\n` +
-      `*Telefone:* ${formatTelefone(e.telefone)}\n` +
-      `*Local:* ${e.local}\n` +
-      `*Início:* ${formatData(e.dataHoraInicio)}\n` +
-      `*Término:* ${formatData(e.dataHoraFim)}\n\n` +
-      `*Produtos:*\n${itensTexto}\n\n` +
-      `*Valores:*\n` +
-      `  Produtos: ${formatMoeda(e.totalProdutos)}\n` +
-      `  Frete: ${formatMoeda(e.valorFrete)}\n` +
-      `  Mão de obra: ${formatMoeda(e.valorOrganizacao)}\n` +
-      outrosTexto +
-      `\n*Total: ${formatMoeda(e.totalGeral)}*` +
-      (e.observacoes ? `\n\n*Obs:* ${e.observacoes}` : '')
-    );
-  };
-
-  const duplicarEvento = async () => {
-    if (!evento) return;
-    setDuplicando(true);
+  const alterarPagamento = async (novoStatus: string) => {
+    if (!evento || atualizandoPagamento) return;
+    setAtualizandoPagamento(true);
     try {
-      const novoId = await createEvento({
-        cliente: evento.cliente,
-        telefone: evento.telefone,
-        dataHoraInicio: evento.dataHoraInicio,
-        dataHoraFim: evento.dataHoraFim,
-        local: evento.local,
-        valorFrete: evento.valorFrete,
-        valorOrganizacao: evento.valorOrganizacao,
-        outrosValores: evento.outrosValores,
-        observacoes: evento.observacoes,
-        itens: evento.itens,
-        status: 'orçamento',
-      });
-      Alert.alert('Evento duplicado!', 'Abrindo o novo evento para edição.', [
-        { text: 'OK', onPress: () => router.replace(`/eventos/editar/${novoId}`) },
-      ]);
-    } catch (err) {
-      Alert.alert('Erro', err instanceof Error ? err.message : 'Não foi possível duplicar');
+      await updateEventoPagamento(String(id), novoStatus);
+      setEvento({ ...evento, statusPagamento: novoStatus });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Erro ao atualizar pagamento');
     } finally {
-      setDuplicando(false);
+      setAtualizandoPagamento(false);
     }
   };
 
-  const compartilharWhatsApp = () => {
+  const excluirEvento = async () => {
+    setExcluindo(true);
+    try {
+      await deleteEvento(String(id));
+      setDeleteModalVisible(false);
+      router.replace('/(tabs)/eventos');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Não foi possível excluir o evento');
+    } finally {
+      setExcluindo(false);
+    }
+  };
+
+  const gerarPDF = async () => {
     if (!evento) return;
-    const texto = formatarEventoTexto(evento);
-    Linking.openURL(`whatsapp://send?text=${encodeURIComponent(texto)}`).catch(() => {
-      Alert.alert('Erro', 'WhatsApp não encontrado no dispositivo');
+
+    const itensRows = evento.itens.map((item) => `
+      <tr>
+        <td>${item.nomeProduto}</td>
+        <td style="text-align:center">${item.quantidade}</td>
+        <td style="text-align:right">${formatMoeda(item.valorTotal)}</td>
+      </tr>`).join('');
+
+    const dataEvento = new Date(evento.dataHoraInicio).toLocaleDateString('pt-BR', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
     });
+    const horaEvento = new Date(evento.dataHoraInicio).toLocaleTimeString('pt-BR', {
+      hour: '2-digit', minute: '2-digit',
+    });
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; color: #333; background: #fff; padding: 48px 52px; }
+
+  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2px solid #FFB6C1; }
+  .brand h1 { font-size: 26px; color: #FFB6C1; font-weight: 900; letter-spacing: 1px; }
+  .brand p { color: #AAA; font-size: 12px; margin-top: 2px; }
+  .doc-info { text-align: right; }
+  .doc-info .label { font-size: 11px; color: #AAA; text-transform: uppercase; letter-spacing: 1px; }
+  .doc-info .value { font-size: 13px; color: #555; margin-top: 2px; }
+
+  .greeting { font-size: 15px; color: #555; margin-bottom: 20px; line-height: 1.6; }
+  .greeting strong { color: #333; }
+
+  .info-block { background: #FFF8F9; border-left: 3px solid #FFB6C1; padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 28px; }
+  .info-block .row { display:flex; gap: 8px; font-size: 14px; margin-bottom: 6px; }
+  .info-block .row:last-child { margin-bottom: 0; }
+  .info-block .lbl { color: #AAA; min-width: 60px; }
+  .info-block .val { color: #333; font-weight: 600; }
+
+  .section-title { font-size: 11px; font-weight: bold; color: #FFB6C1; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  table { width:100%; border-collapse:collapse; font-size: 14px; margin-bottom: 28px; }
+  thead tr { border-bottom: 2px solid #FFB6C1; }
+  thead td { padding: 8px 10px; font-weight: bold; color: #FFB6C1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody tr { border-bottom: 1px solid #F0F0F0; }
+  tbody td { padding: 10px 10px; }
+
+  .total-box { display:flex; justify-content:flex-end; margin-top: 4px; }
+  .total-inner { background: #FFB6C1; color: #fff; padding: 14px 24px; border-radius: 10px; text-align: center; min-width: 200px; }
+  .total-inner .total-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.85; }
+  .total-inner .total-value { font-size: 26px; font-weight: 900; margin-top: 4px; }
+
+  .obs { background:#F9F9F9; border-left:3px solid #DDD; padding:10px 14px; font-size:13px; color:#666; margin-top:8px; border-radius: 0 6px 6px 0; }
+
+  .footer { text-align:center; color:#CCC; font-size:11px; margin-top:48px; padding-top:16px; border-top:1px solid #EEE; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="brand">
+      <h1>D&R Decorações</h1>
+      <p>Decoração de eventos</p>
+    </div>
+    <div class="doc-info">
+      <div class="label">Orçamento</div>
+      <div class="value">${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+  </div>
+
+  <p class="greeting">
+    Prezado(a) <strong>${evento.cliente}</strong>,<br/>
+    segue abaixo o orçamento para o seu evento conforme solicitado.
+  </p>
+
+  <div class="info-block">
+    <div class="row"><span class="lbl">Data:</span><span class="val">${dataEvento}, às ${horaEvento}</span></div>
+    <div class="row"><span class="lbl">Local:</span><span class="val">${evento.local}</span></div>
+    <div class="row"><span class="lbl">Telefone:</span><span class="val">${formatTelefone(evento.telefone)}</span></div>
+  </div>
+
+  <div class="section-title">Itens do Orçamento</div>
+  <table>
+    <thead><tr>
+      <td>Produto</td>
+      <td style="text-align:center">Qtd</td>
+      <td style="text-align:right">Valor</td>
+    </tr></thead>
+    <tbody>${itensRows}</tbody>
+  </table>
+
+  <div class="total-box">
+    <div class="total-inner">
+      <div class="total-label">Valor Total</div>
+      <div class="total-value">${formatMoeda(evento.totalGeral)}</div>
+    </div>
+  </div>
+
+  ${evento.observacoes ? `<div style="margin-top:28px"><div class="section-title">Observações</div><div class="obs">${evento.observacoes}</div></div>` : ''}
+
+  <div class="footer">
+    D&R Decorações &nbsp;·&nbsp; Este orçamento foi gerado em ${new Date().toLocaleDateString('pt-BR')} e pode ser alterado a qualquer momento.
+  </div>
+
+</body>
+</html>`;
+
+    try {
+      if (Platform.OS === 'web') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => printWindow.print(), 500);
+        }
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Compartilhar Orçamento' });
+        } else {
+          await Print.printAsync({ html });
+        }
+      }
+    } catch {
+      showError('Não foi possível gerar o PDF');
+    }
   };
 
 
@@ -205,20 +307,21 @@ export default function DetalhesEventoScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Detalhes do Evento</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={compartilharWhatsApp} style={styles.actionButton}>
-            <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={duplicarEvento} style={styles.actionButton} disabled={duplicando}>
-            {duplicando
-              ? <ActivityIndicator size="small" color="#FFB6C1" />
-              : <Ionicons name="copy-outline" size={22} color="#FFB6C1" />
-            }
+          <TouchableOpacity onPress={gerarPDF} style={styles.pdfButton}>
+            <Ionicons name="document-text-outline" size={16} color="#FFF" />
+            <Text style={styles.pdfButtonText}>Orçamento PDF</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push(`/eventos/editar/${id}`)}
             style={styles.actionButton}
           >
             <Ionicons name="create" size={22} color="#FFB6C1" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setDeleteModalVisible(true)}
+            style={styles.actionButton}
+          >
+            <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
           </TouchableOpacity>
         </View>
       </View>
@@ -236,7 +339,7 @@ export default function DetalhesEventoScreen() {
               <Text style={styles.statusCardLabel}>Status do Evento (Toque para alterar)</Text>
               <Ionicons name="chevron-down" size={20} color="#FFB6C1" />
             </View>
-            <View style={[styles.statusBadgeLarge, styles[`status_${evento.status}`]]}>
+            <View style={[styles.statusBadgeLarge, (styles as any)[`status_${evento.status}`]]}>
               <Text style={styles.statusBadgeText}>{evento.status.toUpperCase()}</Text>
             </View>
             {atualizandoStatus && (
@@ -244,9 +347,48 @@ export default function DetalhesEventoScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Pagamento */}
+          <View style={styles.pagamentoCard}>
+            <View style={styles.pagamentoHeader}>
+              <Ionicons name="cash-outline" size={18} color="#FFB6C1" />
+              <Text style={styles.pagamentoTitle}>Pagamento</Text>
+              {atualizandoPagamento && <ActivityIndicator size="small" color="#FFB6C1" style={{ marginLeft: 8 }} />}
+            </View>
+            <View style={styles.pagamentoButtons}>
+              {([
+                { label: 'Pendente', value: 'pendente', cor: '#FFF3CD', corAtivo: '#F0AD00' },
+                { label: 'Parcial', value: 'parcial', cor: '#D1ECF1', corAtivo: '#17A2B8' },
+                { label: 'Pago', value: 'pago', cor: '#D4EDDA', corAtivo: '#28A745' },
+              ] as const).map((op) => {
+                const ativo = evento.statusPagamento === op.value;
+                return (
+                  <TouchableOpacity
+                    key={op.value}
+                    style={[styles.pagamentoBtn, ativo && { backgroundColor: op.corAtivo }]}
+                    onPress={() => alterarPagamento(op.value)}
+                    disabled={atualizandoPagamento}
+                  >
+                    <Text style={[styles.pagamentoBtnText, ativo && styles.pagamentoBtnTextAtivo]}>
+                      {op.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
           {/* Cliente */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Cliente</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Cliente</Text>
+              <TouchableOpacity
+                style={styles.historicoBtn}
+                onPress={() => router.push(`/clientes/historico?nome=${encodeURIComponent(evento.cliente)}&telefone=${evento.telefone}` as any)}
+              >
+                <Ionicons name="time-outline" size={14} color="#FFB6C1" />
+                <Text style={styles.historicoBtnText}>Ver histórico</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.infoRow}>
               <Ionicons name="person" size={20} color="#FFB6C1" />
               <Text style={styles.infoText}>{evento.cliente}</Text>
@@ -379,19 +521,112 @@ export default function DetalhesEventoScreen() {
               { label: 'Orçamento', value: 'orçamento' },
               { label: 'Pendente', value: 'pendente' },
               { label: 'Realizado', value: 'realizado' },
-              { label: 'Cancelado', value: 'cancelado' },
+              { label: 'Cancelado', value: 'cancelado', danger: true },
             ].map((item) => (
               <TouchableOpacity
                 key={item.value}
                 style={styles.modalOption}
-                onPress={async () => {
+                onPress={() => {
                   setStatusModalVisible(false);
-                  await alterarStatus(item.value);
+                  if (item.value === 'cancelado') {
+                    setCancelarConfirmVisible(true);
+                  } else {
+                    alterarStatus(item.value);
+                  }
                 }}
               >
-                <Text style={styles.modalOptionText}>{item.label}</Text>
+                <Text style={[styles.modalOptionText, item.danger && { color: '#FF6B6B' }]}>
+                  {item.label}
+                </Text>
               </TouchableOpacity>
             ))}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+      {/* Modal: confirmar exclusão */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => !excluindo && setDeleteModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Excluir Evento</Text>
+              <TouchableOpacity onPress={() => !excluindo && setDeleteModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalSubtitle, { marginBottom: 20, fontSize: 15 }]}>
+              Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.modalOption, { flex: 1, backgroundColor: '#F5F5F5', borderRadius: 8, alignItems: 'center', borderBottomWidth: 0 }]}
+                onPress={() => setDeleteModalVisible(false)}
+                disabled={excluindo}
+              >
+                <Text style={[styles.modalOptionText, { color: '#666' }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalOption, { flex: 1, backgroundColor: '#FF6B6B', borderRadius: 8, alignItems: 'center', borderBottomWidth: 0 }]}
+                onPress={excluirEvento}
+                disabled={excluindo}
+              >
+                {excluindo
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <Text style={[styles.modalOptionText, { color: '#FFF' }]}>Excluir</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Modal: confirmar cancelamento */}
+      <Modal
+        visible={cancelarConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelarConfirmVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCancelarConfirmVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Cancelar Evento</Text>
+              <TouchableOpacity onPress={() => setCancelarConfirmVisible(false)}>
+                <Ionicons name="close" size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalSubtitle, { marginBottom: 20, fontSize: 15 }]}>
+              Confirma o cancelamento deste evento?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.modalOption, { flex: 1, backgroundColor: '#F5F5F5', borderRadius: 8, alignItems: 'center', borderBottomWidth: 0 }]}
+                onPress={() => setCancelarConfirmVisible(false)}
+              >
+                <Text style={[styles.modalOptionText, { color: '#666' }]}>Não</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalOption, { flex: 1, backgroundColor: '#F8D7DA', borderRadius: 8, alignItems: 'center', borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setCancelarConfirmVisible(false);
+                  alterarStatus('cancelado');
+                }}
+              >
+                <Text style={[styles.modalOptionText, { color: '#721C24' }]}>Sim, cancelar</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -429,6 +664,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  pdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFB6C1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 5,
+  },
+  pdfButtonText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   actionButton: {
     width: 40,
@@ -670,5 +919,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  pagamentoCard: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  pagamentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pagamentoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#333',
+    marginLeft: 8,
+  },
+  pagamentoButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pagamentoBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+  },
+  pagamentoBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  pagamentoBtnTextAtivo: {
+    color: '#FFF',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    // override the sectionTitle marginBottom inside this row
+  },
+  historicoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFB6C1',
+  },
+  historicoBtnText: {
+    fontSize: 12,
+    color: '#FFB6C1',
+    fontWeight: '600',
   },
 });

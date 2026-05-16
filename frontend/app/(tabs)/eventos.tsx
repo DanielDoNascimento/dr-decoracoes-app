@@ -6,13 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { listEventos } from '../../services/api';
+import { showError } from '../../services/alert';
 
 interface Evento {
   id: string;
@@ -22,6 +22,7 @@ interface Evento {
   dataHoraFim: string;
   local: string;
   status: string;
+  statusPagamento: string;
   totalGeral: number;
 }
 
@@ -31,6 +32,9 @@ export default function EventosScreen() {
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>('orçamento');
   const [busca, setBusca] = useState('');
+  const hoje = new Date();
+  const [filtroAno, setFiltroAno] = useState<number | null>(null);
+  const [filtroMes, setFiltroMes] = useState<number | null>(null);
 
   const fetchEventos = async () => {
     try {
@@ -40,7 +44,7 @@ export default function EventosScreen() {
       );
       setEventos(ordenados);
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar os eventos');
+      showError('Não foi possível carregar os eventos');
     } finally {
       setLoading(false);
     }
@@ -72,17 +76,36 @@ export default function EventosScreen() {
   };
 
   const isEventoAtrasado = (dataISO: string, status: string) => {
-    if (status === 'realizado') return false;
+    if (status === 'realizado' || status === 'cancelado') return false;
     const dataEvento = new Date(dataISO);
     const agora = new Date();
     return dataEvento < agora;
   };
 
-  const eventosFiltrados = eventos.filter(
-    (e) =>
-      e.status === filtroStatus &&
-      (busca.trim() === '' || e.cliente.toLowerCase().includes(busca.trim().toLowerCase()))
-  );
+  const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  const navegarMes = (direcao: 1 | -1) => {
+    const anoBase = filtroAno ?? hoje.getFullYear();
+    const mesBase = filtroMes ?? (hoje.getMonth() + 1);
+    let novoMes = mesBase + direcao;
+    let novoAno = anoBase;
+    if (novoMes > 12) { novoMes = 1; novoAno++; }
+    if (novoMes < 1) { novoMes = 12; novoAno--; }
+    setFiltroMes(novoMes);
+    setFiltroAno(novoAno);
+  };
+
+  const limparFiltroMes = () => { setFiltroMes(null); setFiltroAno(null); };
+
+  const eventosFiltrados = eventos.filter((e) => {
+    if (e.status !== filtroStatus) return false;
+    if (busca.trim() !== '' && !e.cliente.toLowerCase().includes(busca.trim().toLowerCase())) return false;
+    if (filtroMes !== null && filtroAno !== null) {
+      const d = new Date(e.dataHoraInicio);
+      if (d.getMonth() + 1 !== filtroMes || d.getFullYear() !== filtroAno) return false;
+    }
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -125,6 +148,26 @@ export default function EventosScreen() {
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      {/* Filtro por mês */}
+      <View style={styles.mesFilterContainer}>
+        <TouchableOpacity onPress={() => navegarMes(-1)} style={styles.mesArrow}>
+          <Ionicons name="chevron-back" size={20} color="#666" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.mesLabel} onPress={limparFiltroMes}>
+          <Text style={styles.mesLabelText}>
+            {filtroMes !== null && filtroAno !== null
+              ? `${MESES[filtroMes - 1]} ${filtroAno}`
+              : 'Todos os meses'}
+          </Text>
+          {filtroMes !== null && (
+            <Ionicons name="close-circle" size={14} color="#999" style={{ marginLeft: 4 }} />
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navegarMes(1)} style={styles.mesArrow}>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -171,7 +214,7 @@ export default function EventosScreen() {
               >
                 <View style={styles.eventoHeader}>
                   <Text style={styles.eventoCliente}>{item.cliente}</Text>
-                  <View style={[styles.statusBadge, styles[`status_${item.status}`]]}>
+                  <View style={[styles.statusBadge, (styles as any)[`status_${item.status}`]]}>
                     <Text style={styles.statusText}>{item.status}</Text>
                   </View>
                 </View>
@@ -188,7 +231,21 @@ export default function EventosScreen() {
                 </View>
                 <View style={styles.eventoFooter}>
                   <Text style={styles.eventoValor}>{formatMoeda(item.totalGeral)}</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#999" />
+                  <View style={styles.eventoFooterRight}>
+                    <View style={[
+                      styles.pagamentoBadge,
+                      item.statusPagamento === 'pago' && styles.pagamentoPago,
+                      item.statusPagamento === 'parcial' && styles.pagamentoParcial,
+                    ]}>
+                      <Text style={[
+                        styles.pagamentoBadgeText,
+                        (item.statusPagamento === 'pago' || item.statusPagamento === 'parcial') && styles.pagamentoBadgeTextAtivo,
+                      ]}>
+                        {item.statusPagamento === 'pago' ? 'Pago' : item.statusPagamento === 'parcial' ? 'Parcial' : 'Pendente'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#999" />
+                  </View>
                 </View>
               </TouchableOpacity>
             );
@@ -280,6 +337,29 @@ const styles = StyleSheet.create({
   filterBadgeTextActive: {
     color: '#FFF',
   },
+  mesFilterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  mesArrow: {
+    padding: 6,
+  },
+  mesLabel: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mesLabelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,6 +424,9 @@ const styles = StyleSheet.create({
   status_realizado: {
     backgroundColor: '#D4EDDA',
   },
+  status_cancelado: {
+    backgroundColor: '#F8D7DA',
+  },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
@@ -376,6 +459,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFB6C1',
+  },
+  eventoFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pagamentoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: '#F0F0F0',
+  },
+  pagamentoPago: {
+    backgroundColor: '#D4EDDA',
+  },
+  pagamentoParcial: {
+    backgroundColor: '#D1ECF1',
+  },
+  pagamentoBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+  },
+  pagamentoBadgeTextAtivo: {
+    color: '#333',
   },
   emptyContainer: {
     flex: 1,
