@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { listEventos } from '../../services/api';
 import { showError } from '../../services/alert';
+import OfflineBanner from '../../components/OfflineBanner';
 
 interface Evento {
   id: string;
@@ -286,6 +287,7 @@ export default function EventosScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <OfflineBanner />
       <View style={styles.header}>
         <Text style={styles.title}>Eventos</Text>
         <View style={styles.headerActions}>

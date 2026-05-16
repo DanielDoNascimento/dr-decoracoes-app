@@ -1,58 +1,89 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import * as Updates from 'expo-updates';
+import { SyncProvider } from '../contexts/SyncContext';
 import { pingServer } from '../services/api';
 
 export default function RootLayout() {
   const [serverReady, setServerReady] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [checking, setChecking] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const startInit = () => {
+    setFailed(false);
+    setElapsed(0);
+    setChecking(true);
+    setServerReady(false);
+    runInit();
+  };
+
+  const runInit = async () => {
     let cancelled = false;
     const startTime = Date.now();
 
     const timer = setInterval(() => {
-      if (!cancelled) setElapsed(Math.floor((Date.now() - startTime) / 1000));
+      if (!cancelled) {
+        const secs = Math.floor((Date.now() - startTime) / 1000);
+        setElapsed(secs);
+        if (secs >= 60) {
+          cancelled = true;
+          clearInterval(timer);
+          setFailed(true);
+        }
+      }
     }, 1000);
 
-    const init = async () => {
-      // 1. Verificar atualização OTA (só em builds de produção)
-      if (!__DEV__) {
-        try {
-          const update = await Updates.checkForUpdateAsync();
-          if (update.isAvailable) {
-            await Updates.fetchUpdateAsync();
-            await Updates.reloadAsync();
-            return;
-          }
-        } catch {
-          // falha silenciosa — app continua normalmente
+    // 1. Verificar atualização OTA (só em builds de produção)
+    if (!__DEV__) {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+          return;
         }
+      } catch {
+        // falha silenciosa
       }
+    }
 
-      if (!cancelled) setChecking(false);
+    setChecking(false);
 
-      // 2. Aguardar servidor acordar
-      while (!cancelled) {
-        const ok = await pingServer();
-        if (ok) {
-          if (!cancelled) setServerReady(true);
-          break;
-        }
-        await new Promise(r => setTimeout(r, 3000));
+    // 2. Aguardar servidor
+    while (!cancelled) {
+      const ok = await pingServer();
+      if (ok) {
+        clearInterval(timer);
+        setServerReady(true);
+        break;
       }
-    };
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  };
 
-    init();
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
+  useEffect(() => {
+    runInit();
   }, []);
+
+  if (failed) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.container}>
+          <Text style={styles.logo}>D&R</Text>
+          <Text style={styles.brand}>Decorações</Text>
+          <Text style={styles.errorIcon}>📵</Text>
+          <Text style={styles.errorTitle}>Sem conexão</Text>
+          <Text style={styles.errorMsg}>Verifique sua internet e tente novamente.</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={startInit}>
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   if (!serverReady) {
     return (
@@ -62,11 +93,7 @@ export default function RootLayout() {
           <Text style={styles.brand}>Decorações</Text>
           <ActivityIndicator size="large" color="#FFB6C1" style={styles.spinner} />
           <Text style={styles.message}>
-            {checking
-              ? 'Verificando atualizações...'
-              : elapsed >= 5
-              ? 'Servidor iniciando...'
-              : 'Carregando...'}
+            {checking ? 'Verificando atualizações...' : elapsed >= 5 ? 'Servidor iniciando...' : 'Carregando...'}
           </Text>
           {!checking && elapsed >= 5 && (
             <Text style={styles.hint}>Isso é normal no primeiro acesso do dia</Text>
@@ -78,10 +105,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <SyncProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </SyncProvider>
     </SafeAreaProvider>
   );
 }
@@ -120,5 +149,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#BBBBBB',
     textAlign: 'center',
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginTop: 40,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 12,
+  },
+  errorMsg: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: 32,
+    backgroundColor: '#FFB6C1',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

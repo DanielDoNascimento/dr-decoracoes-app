@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { listProdutos } from '../../services/api';
+import { showError } from '../../services/alert';
+import OfflineBanner from '../../components/OfflineBanner';
 
 interface Produto {
   id: string;
@@ -35,7 +36,7 @@ export default function ProdutosScreen() {
       const data = await listProdutos(searchTerm);
       setProdutos(data);
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar os produtos');
+      showError('Não foi possível carregar os produtos');
     } finally {
       setLoading(false);
     }
@@ -81,6 +82,7 @@ export default function ProdutosScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <OfflineBanner />
       <View style={styles.header}>
         <Text style={styles.title}>Produtos</Text>
         <TouchableOpacity 
