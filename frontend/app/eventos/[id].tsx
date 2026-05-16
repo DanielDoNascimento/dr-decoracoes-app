@@ -161,7 +161,6 @@ export default function DetalhesEventoScreen() {
       <tr>
         <td>${item.nomeProduto}</td>
         <td style="text-align:center">${item.quantidade}</td>
-        <td style="text-align:right">${formatMoeda(item.valorTotal)}</td>
       </tr>`).join('');
 
     const dataEvento = new Date(evento.dataHoraInicio).toLocaleDateString('pt-BR', {
@@ -241,7 +240,6 @@ export default function DetalhesEventoScreen() {
     <thead><tr>
       <td>Produto</td>
       <td style="text-align:center">Qtd</td>
-      <td style="text-align:right">Valor</td>
     </tr></thead>
     <tbody>${itensRows}</tbody>
   </table>

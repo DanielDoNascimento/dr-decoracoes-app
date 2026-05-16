@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { getDashboardData, getFinanceMonthSummary } from '../../services/api';
+import { getDashboardData } from '../../services/api';
 
 interface Evento {
   id: string;
@@ -34,7 +34,6 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [eventosEstaSemana, setEventosEstaSemana] = useState(0);
-  const [receitaMes, setReceitaMes] = useState<number | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -52,12 +51,6 @@ export default function DashboardScreen() {
       });
 
       setEventosEstaSemana(eventosSemana.length);
-
-      const now = new Date();
-      try {
-        const fin = await getFinanceMonthSummary(now.getFullYear(), now.getMonth() + 1);
-        setReceitaMes(fin.entradas);
-      } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -167,23 +160,6 @@ export default function DashboardScreen() {
               </View>
               <Ionicons name="chevron-forward" size={24} color="#CCC" />
             </TouchableOpacity>
-
-            {receitaMes !== null && (
-              <TouchableOpacity
-                style={[styles.statsCard, styles.statsCardGreen]}
-                onPress={() => router.push('/(tabs)/financeiro')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.statsIconContainer, styles.statsIconGreen]}>
-                  <Ionicons name="cash-outline" size={32} color="#4CAF50" />
-                </View>
-                <View style={styles.statsContent}>
-                  <Text style={styles.statsValue}>{formatMoeda(receitaMes)}</Text>
-                  <Text style={styles.statsLabel}>Receita em {new Date().toLocaleDateString('pt-BR', { month: 'long' })}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={24} color="#CCC" />
-              </TouchableOpacity>
-            )}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Próximos Eventos</Text>
