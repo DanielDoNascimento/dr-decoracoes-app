@@ -21,18 +21,10 @@ logging.basicConfig(level=logging.INFO)
 API_KEY = os.getenv("API_KEY", "").strip()
 STATUS_VALIDOS = {"orçamento", "pendente", "realizado", "cancelado"}
 
-# CORS — lista de origens separada por vírgula em CORS_ORIGINS; usa localhost em dev se vazio
-_cors_env = os.getenv("CORS_ORIGINS", "").strip()
-CORS_ORIGINS: list[str] = (
-    [o.strip() for o in _cors_env.split(",") if o.strip()]
-    if _cors_env
-    else ["http://localhost:8081", "http://127.0.0.1:8081", "http://localhost:3000"]
-)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
