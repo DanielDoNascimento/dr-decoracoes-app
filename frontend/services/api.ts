@@ -33,6 +33,7 @@ export type EventoDetalhado = {
   despesasTotais: number;
   status: string;
   statusPagamento: string;
+  valorPago: number;
   formaPagamento: string;
   observacoes: string;
   itens: EventoItem[];
@@ -392,7 +393,7 @@ export const getEventoById = async (id: string): Promise<EventoDetalhado | null>
         dataHoraInicio: e.dataHoraInicio, dataHoraFim: e.dataHoraFim, local: e.local,
         valorFrete: e.valorFrete ?? 0, valorOrganizacao: e.valorOrganizacao ?? 0,
         outrosValores, despesasTotais, status: e.status,
-        statusPagamento: e.statusPagamento ?? 'pendente', formaPagamento: e.formaPagamento ?? '',
+        statusPagamento: e.statusPagamento ?? 'pendente', valorPago: e.valorPago ?? 0, formaPagamento: e.formaPagamento ?? '',
         observacoes: e.observacoes ?? '', itens,
         totalProdutos: e.totalProdutos ?? 0, totalGeral,
         receitaTotal: e.receitaTotal ?? totalGeral,
@@ -463,8 +464,8 @@ export const updateEventoStatus = async (id: string, status: string) => {
   await apiFetch<any>(`/api/eventos/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
 };
 
-export const updateEventoPagamento = async (id: string, statusPagamento: string) => {
-  await apiFetch<any>(`/api/eventos/${id}/pagamento`, { method: 'PUT', body: JSON.stringify({ statusPagamento }) });
+export const updateEventoPagamento = async (id: string, statusPagamento: string, valorPago: number = 0) => {
+  await apiFetch<any>(`/api/eventos/${id}/pagamento`, { method: 'PUT', body: JSON.stringify({ statusPagamento, valorPago }) });
 };
 
 export const deleteEvento = async (id: string) => {

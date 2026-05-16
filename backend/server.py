@@ -175,6 +175,7 @@ class StatusUpdateRequest(BaseModel):
 
 class PagamentoUpdateRequest(BaseModel):
     statusPagamento: str
+    valorPago: float = 0.0
 
 # ============= HELPER FUNCTIONS =============
 
@@ -219,6 +220,7 @@ def evento_helper(evento) -> dict:
         "receitaTotal": total_geral,
         "statusPagamento": evento.get("statusPagamento", "pendente"),
         "formaPagamento": evento.get("formaPagamento", ""),
+        "valorPago": float(evento.get("valorPago", 0.0)),
     }
 
 def verificar_disponibilidade_produto(produto_id: str, quantidade: int, data_inicio: str, data_fim: str, evento_id_excluir: str = None) -> bool:
@@ -528,11 +530,12 @@ async def atualizar_pagamento_evento(evento_id: str, req: PagamentoUpdateRequest
         evento = eventos_collection.find_one({"_id": evento_object_id})
         if not evento:
             raise _http_error(404, "Evento não encontrado")
+        update_fields = {"statusPagamento": req.statusPagamento, "valorPago": req.valorPago}
         eventos_collection.update_one(
             {"_id": evento_object_id},
-            {"$set": {"statusPagamento": req.statusPagamento}}
+            {"$set": update_fields}
         )
-        evento["statusPagamento"] = req.statusPagamento
+        evento.update(update_fields)
         return evento_helper(evento)
     except HTTPException:
         raise

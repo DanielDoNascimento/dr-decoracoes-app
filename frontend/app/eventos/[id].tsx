@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +40,7 @@ interface Evento {
   despesasTotais: number;
   status: string;
   statusPagamento: string;
+  valorPago: number;
   formaPagamento: string;
   observacoes: string;
   itens: ItemEvento[];
@@ -56,6 +58,7 @@ export default function DetalhesEventoScreen() {
   const [atualizandoStatus, setAtualizandoStatus] = useState(false);
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [atualizandoPagamento, setAtualizandoPagamento] = useState(false);
+  const [valorPagoInput, setValorPagoInput] = useState('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [cancelarConfirmVisible, setCancelarConfirmVisible] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
@@ -67,6 +70,9 @@ export default function DetalhesEventoScreen() {
         throw new Error('Evento não encontrado');
       }
       setEvento(data);
+      if (data.valorPago > 0) {
+        setValorPagoInput(String(data.valorPago).replace('.', ','));
+      }
     } catch {
       showError('Não foi possível carregar o evento');
       router.back();
@@ -128,17 +134,23 @@ export default function DetalhesEventoScreen() {
     setStatusModalVisible(true);
   };
 
-  const alterarPagamento = async (novoStatus: string) => {
+  const alterarPagamento = async (novoStatus: string, vPago?: number) => {
     if (!evento || atualizandoPagamento) return;
     setAtualizandoPagamento(true);
     try {
-      await updateEventoPagamento(String(id), novoStatus);
-      setEvento({ ...evento, statusPagamento: novoStatus });
+      const valorFinal = vPago ?? (novoStatus === 'parcial' ? (parseFloat(valorPagoInput.replace(',', '.')) || 0) : 0);
+      await updateEventoPagamento(String(id), novoStatus, valorFinal);
+      setEvento({ ...evento, statusPagamento: novoStatus, valorPago: valorFinal });
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Erro ao atualizar pagamento');
     } finally {
       setAtualizandoPagamento(false);
     }
+  };
+
+  const salvarValorPago = () => {
+    const valor = parseFloat(valorPagoInput.replace(',', '.')) || 0;
+    alterarPagamento('parcial', valor);
   };
 
   const excluirEvento = async () => {
@@ -301,28 +313,30 @@ export default function DetalhesEventoScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFB6C1" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Detalhes do Evento</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={gerarPDF} style={styles.pdfButton}>
-            <Ionicons name="document-text-outline" size={16} color="#FFF" />
-            <Text style={styles.pdfButtonText}>Orçamento PDF</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFB6C1" />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push(`/eventos/editar/${id}`)}
-            style={styles.actionButton}
-          >
-            <Ionicons name="create" size={22} color="#FFB6C1" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setDeleteModalVisible(true)}
-            style={styles.actionButton}
-          >
-            <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={gerarPDF} style={styles.pdfButton}>
+              <Ionicons name="document-text-outline" size={16} color="#FFF" />
+              <Text style={styles.pdfButtonText}>Orçamento PDF</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push(`/eventos/editar/${id}`)}
+              style={styles.actionButton}
+            >
+              <Ionicons name="create" size={22} color="#FFB6C1" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setDeleteModalVisible(true)}
+              style={styles.actionButton}
+            >
+              <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
+            </TouchableOpacity>
+          </View>
         </View>
+        <Text style={styles.title}>Detalhes do Evento</Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -395,6 +409,47 @@ export default function DetalhesEventoScreen() {
                 );
               })}
             </View>
+
+            {evento.statusPagamento === 'parcial' && (
+              <View style={styles.valorPagoContainer}>
+                <Text style={styles.valorPagoLabel}>Quanto foi pago até agora?</Text>
+                <View style={styles.valorPagoInputRow}>
+                  <Text style={styles.valorPagoCifrao}>R$</Text>
+                  <TextInput
+                    style={styles.valorPagoInput}
+                    value={valorPagoInput}
+                    onChangeText={setValorPagoInput}
+                    keyboardType="numeric"
+                    placeholder="0,00"
+                    placeholderTextColor="#BBB"
+                  />
+                  <TouchableOpacity
+                    style={styles.valorPagoSalvarBtn}
+                    onPress={salvarValorPago}
+                    disabled={atualizandoPagamento}
+                  >
+                    <Text style={styles.valorPagoSalvarText}>Salvar</Text>
+                  </TouchableOpacity>
+                </View>
+                {(parseFloat(valorPagoInput.replace(',', '.')) || 0) > 0 && (
+                  <View style={styles.valorRestanteRow}>
+                    <View style={styles.valorRestanteItem}>
+                      <Text style={styles.valorRestanteLabel}>Pago</Text>
+                      <Text style={[styles.valorRestanteValor, { color: '#28A745' }]}>
+                        {formatMoeda(parseFloat(valorPagoInput.replace(',', '.')) || 0)}
+                      </Text>
+                    </View>
+                    <View style={styles.valorRestanteSeparator} />
+                    <View style={styles.valorRestanteItem}>
+                      <Text style={styles.valorRestanteLabel}>Falta receber</Text>
+                      <Text style={[styles.valorRestanteValor, { color: '#E67E22' }]}>
+                        {formatMoeda(Math.max(0, evento.totalGeral - (parseFloat(valorPagoInput.replace(',', '.')) || 0)))}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Cliente */}
@@ -660,13 +715,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   backButton: {
     width: 40,
@@ -712,9 +772,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+    paddingLeft: 4,
   },
   scrollView: {
     flex: 1,
@@ -980,6 +1041,81 @@ const styles = StyleSheet.create({
   },
   pagamentoBtnTextAtivo: {
     color: '#FFF',
+  },
+  valorPagoContainer: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: 14,
+  },
+  valorPagoLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  valorPagoInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  valorPagoCifrao: {
+    fontSize: 16,
+    color: '#666',
+    marginRight: 6,
+    fontWeight: '600',
+  },
+  valorPagoInput: {
+    flex: 1,
+    fontSize: 18,
+    color: '#333',
+    paddingVertical: 8,
+    fontWeight: '600',
+  },
+  valorPagoSalvarBtn: {
+    backgroundColor: '#17A2B8',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  valorPagoSalvarText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  valorRestanteRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  valorRestanteItem: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  valorRestanteSeparator: {
+    width: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  valorRestanteLabel: {
+    fontSize: 11,
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  valorRestanteValor: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   formaPagBadgeRow: {
     marginBottom: 10,
